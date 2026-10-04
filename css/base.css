@@ -778,11 +778,6 @@ html[data-theme='light'] .card {
   font-size: 0.76rem;
 }
 
-.chip__icon {
-  font-size: 1rem;
-  line-height: 1;
-}
-
 .chips--sm .chip.is-active {
   --tone: var(--primary);
 }
@@ -944,6 +939,18 @@ html[data-theme='light'] input[type='date']::-webkit-calendar-picker-indicator {
 }
 
 /* === Sheet === */
+
+/* Isi modal catat: form + pemindai struk di bawahnya */
+.sheet-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.sheet-form__scan {
+  margin-top: 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
 
 .sheet-backdrop {
   position: fixed;

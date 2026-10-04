@@ -127,10 +127,7 @@ export function createQuickForm({ onSubmit, title, compact = false } = {}) {
         title: opt.label,
         style: `--tone:${opt.color}`,
         dataset: { value: opt.id }
-      }, [
-        el('span', { class: 'chip__icon', text: opt.icon }),
-        el('span', { class: 'chip__label', text: opt.label })
-      ]);
+      }, [el('span', { class: 'chip__label', text: opt.label })]);
       chip.addEventListener('click', () => {
         optionWrap.querySelectorAll('.chip').forEach((c) => c.classList.remove('is-active'));
         chip.classList.add('is-active');

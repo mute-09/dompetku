@@ -15,6 +15,7 @@ import {
   topExpenses
 } from './analytics.js';
 import { chartAvailable, createCashflowChart, createCategoryChart, destroyChart } from './charts.js';
+import { filterTransactions, openEditSheet, renderTxList } from './tx-view.js';
 import { initTheme, onThemeChange, openSettings, setupInstall, setupSyncBadge, setupThemeToggle, toast } from './ui.js';
 import { ICONS, clearNode, el, formatRupiah, formatPercent, svgIcon, todayStr, toDateStr } from './utils.js';
 
@@ -46,6 +47,11 @@ const dom = {
   insights: document.getElementById('insights'),
   categoryTable: document.querySelector('#categoryTable tbody'),
   categoryTfoot: document.querySelector('#categoryTable tfoot'),
+  txSearch: document.getElementById('txSearch'),
+  txFilter: document.getElementById('txFilter'),
+  txList: document.getElementById('txList'),
+  txMore: document.getElementById('txMore'),
+  txlogCount: document.getElementById('txlogCount'),
   incomeHint: document.getElementById('incomeHint'),
   incomeList: document.getElementById('incomeList'),
   exportCsv: document.getElementById('exportCsv'),
@@ -56,6 +62,8 @@ const dom = {
 };
 
 const view = loadView();
+const TXLOG_PAGE = 7;
+const txlog = { filter: 'all', query: '', visible: TXLOG_PAGE };
 let cashflowChart = null;
 let categoryChart = null;
 let latest = null;
@@ -450,6 +458,46 @@ function exportCsv() {
 
 /* === Render === */
 
+/* === Daftar transaksi === */
+
+function renderTxlog() {
+  const { total, remaining } = renderTxList(dom.txList, {
+    filter: txlog.filter,
+    query: txlog.query,
+    visible: txlog.visible,
+    onEdit: openEditSheet
+  });
+  dom.txlogCount.textContent = total ? `${total} transaksi` : '';
+  dom.txMore.hidden = remaining === 0;
+  dom.txMore.textContent = `Tampilkan ${Math.min(TXLOG_PAGE, remaining)} hari lagi`;
+}
+
+function syncFilterChips() {
+  dom.txFilter.querySelectorAll('.chip').forEach((chip) => {
+    chip.classList.toggle('is-active', chip.dataset.filter === txlog.filter);
+  });
+}
+
+dom.txFilter.addEventListener('click', (e) => {
+  const chip = e.target.closest('.chip');
+  if (!chip) return;
+  txlog.filter = chip.dataset.filter;
+  txlog.visible = TXLOG_PAGE;
+  syncFilterChips();
+  renderTxlog();
+});
+
+dom.txSearch.addEventListener('input', (e) => {
+  txlog.query = e.target.value;
+  txlog.visible = TXLOG_PAGE;
+  renderTxlog();
+});
+
+dom.txMore.addEventListener('click', () => {
+  txlog.visible += TXLOG_PAGE;
+  renderTxlog();
+});
+
 function render() {
   const state = store.getState();
   const range = currentRange();
@@ -468,6 +516,7 @@ function render() {
   renderInsights(state, range, prev);
   renderTable(state, range, rows, cmp.current);
   renderIncome(state, range);
+  renderTxlog();
 
   dom.appbarSub.textContent = `${range.label} · saldo ${formatRupiah(store.totals().balance, { compact: true })}`;
 }

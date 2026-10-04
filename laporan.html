@@ -161,6 +161,28 @@
         <ul class="bars" id="incomeList"></ul>
       </section>
 
+      <section class="card txlog" aria-labelledby="txlogTitle">
+        <div class="card__head">
+          <h2 class="card__title" id="txlogTitle">Daftar Transaksi</h2>
+          <span class="activity__count" id="txlogCount"></span>
+        </div>
+        <div class="activity__tools">
+          <div class="search">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/>
+            </svg>
+            <input type="search" id="txSearch" class="search__input" placeholder="Cari transaksi…" aria-label="Cari transaksi" autocomplete="off">
+          </div>
+          <div class="chips chips--scroll" id="txFilter" role="group" aria-label="Saring daftar transaksi">
+            <button class="chip chip--sm is-active" type="button" data-filter="all">Semua</button>
+            <button class="chip chip--sm" type="button" data-filter="expense">Pengeluaran</button>
+            <button class="chip chip--sm" type="button" data-filter="income">Pemasukan</button>
+          </div>
+        </div>
+        <div id="txList"></div>
+        <button class="btn btn--ghost btn--block" id="txMore" type="button" hidden>Tampilkan lebih banyak</button>
+      </section>
+
       <section class="card data-actions">
         <div class="card__head">
           <h2 class="card__title">Data & cadangan</h2>

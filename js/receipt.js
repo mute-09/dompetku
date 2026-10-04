@@ -326,10 +326,7 @@ export function openReceiptReview({ result, onSaved }) {
         type: 'button',
         title: option.label,
         dataset: { value: option.id }
-      }, [
-        el('span', { class: 'chip__icon', text: option.icon }),
-        el('span', { class: 'chip__label', text: option.label })
-      ]);
+      }, [el('span', { class: 'chip__label', text: option.label })]);
       chip.addEventListener('click', () => {
         category = option.id;
         renderCategories();
@@ -562,10 +559,11 @@ export function setupReceiptScanner({ mount, onSaved } = {}) {
   fileInput.addEventListener('change', () => handleFile(fileInput.files?.[0]));
   cameraInput.addEventListener('change', () => handleFile(cameraInput.files?.[0]));
 
-  document.addEventListener('paste', (event) => {
+  const onPaste = (event) => {
     const item = [...(event.clipboardData?.items || [])].find((i) => i.type.startsWith('image/'));
     if (item) handleFile(item.getAsFile());
-  });
+  };
+  document.addEventListener('paste', onPaste);
 
   const button = el('button', { class: 'btn btn--ghost rcpt__scan', type: 'button' }, [
     svgIcon(ICONS.camera, 18),
@@ -594,6 +592,8 @@ export function setupReceiptScanner({ mount, onSaved } = {}) {
     });
 
   return () => {
+    // Modal bisa dibuka berulang, jadi semua listener harus ikut dilepas.
+    document.removeEventListener('paste', onPaste);
     button.remove();
     fileInput.remove();
     cameraInput.remove();

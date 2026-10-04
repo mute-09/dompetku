@@ -6,13 +6,17 @@ Dibagi menjadi tiga halaman: **Masuk** untuk autentikasi, **Catat** untuk input,
 
 ## Halaman 1 — Catat (`index.html`)
 
+Beranda sengaja dibuat **ringkas**: saldo dan dua tombol. Semua input lain ada di dalam modal.
+
 - **Saldo Tersisa** sebagai elemen utama: total pemasukan, total pengeluaran, serta ringkasan hari ini, bulan ini, dan rata-rata harian.
-- **Input satu layar** dengan toggle Pengeluaran/Pemasukan, nominal terformat otomatis (`12500` → `12.500`), pilihan kategori/sumber berupa chip, pintasan tanggal (Hari ini / Kemarin / kalender), dan keterangan opsional.
-- Pratinjau **"Saldo setelah dicatat"** langsung di bawah nominal agar dampak transaksi terlihat sebelum disimpan.
-- **Aktivitas** dikelompokkan per hari lengkap dengan net per hari, saringan (Semua/Pengeluaran/Pemasukan), pencarian, dan penanda transaksi tidak biasa.
-- Transaksi bisa **diubah** (ketuk baris) dan **dihapus dengan undo**.
-- **Pindai struk (OCR)**: tombol kamera/foto (atau tempel dari clipboard) membaca struk belanja di
-  server, lalu membuka sheet konfirmasi sebelum menyimpan apa pun.
+- Dua tombol aksi responsif — **Catat Pengeluaran** dan **Catat Pemasukan** — turun ke bawah pada layar sempit,berdampingan pada layar lebar.
+- **Formulir berada di dalam modal** (bukan di halaman), jadi beranda tidak pernah panjang:
+  - nominal terformat otomatis (`12500` → `12.500`) dengan pratinjau "Saldo setelah dicatat";
+  - kategori/sumber berupa chip **teks saja** (tanpa ikon gambar);
+  - pintasan tanggal (Hari ini / Kemarin / kalender), keterangan opsional, dan detail frekuensi;
+  - tombol **Pindai struk** hanya muncul di modal pengeluaran.
+- Setelah tersimpan, modal tertutup dan saldo langsung diperbarui. Tombol `n` membuka modal pengeluaran.
+- Daftar transaksi tidak ada di beranda — semuanya ada di halaman Laporan.
 
 ## Halaman 2 — Laporan (`laporan.html`)
 
@@ -21,6 +25,9 @@ Dibagi menjadi tiga halaman: **Masuk** untuk autentikasi, **Catat** untuk input,
 - **Grafik tren arus kas** (harian/mingguan/bulanan sesuai panjang periode) dengan garis saldo kumulatif opsional.
 - **Grafik komposisi pengeluaran** per kategori + legenda berisi porsi, total, dan bar.
 - **Pengeluaran terbesar**, **Insight otomatis**, **tabel rincian per kategori**, dan **sumber pemasukan**.
+- **Daftar Transaksi**: seluruh riwayat (tidak terbatas periode) dengan pencarian, saringan
+  (Semua/Pengeluaran/Pemasukan), kelompok per hari + net harian, penanda transaksi tidak biasa,
+  serta tombol "Tampilkan lebih banyak". Ketuk baris untuk **mengubah** atau **menghapus dengan undo**.
 - Ekspor **CSV** (periode terpilih) dan **backup/pemulihan JSON**.
 
 ### Insight yang dihitung otomatis
@@ -188,21 +195,22 @@ dompetku/
 ├── css/
 │   ├── base.css          # Token desain, komponen dasar (tema, tombol, sheet, toast, akun)
 │   ├── auth.css          # Tampilan halaman masuk
-│   ├── catat.css         # Hero saldo, form input, daftar aktivitas
+│   ├── catat.css         # Hero saldo + tombol aksi
 │   ├── receipt.css       # Sheet konfirmasi hasil OCR struk
-│   └── laporan.css       # Periode, KPI, grafik, insight, tabel
+│   └── laporan.css       # Periode, KPI, grafik, insight, tabel, daftar transaksi
 ├── js/
 │   ├── utils.js          # Format rupiah/tanggal, ikon, helper DOM
 │   ├── api.js            # Klien fetch: sesi, error, redirect saat logout
 │   ├── store.js          # State server-backed, cache offline, outbox, backup, ekspor
 │   ├── analytics.js      # Agregasi, rentang periode, deteksi anomali, insight
 │   ├── charts.js         # Wrapper Chart.js yang mengikuti tema
-│   ├── quick-form.js     # Form input yang dipakai di halaman Catat & sheet Ubah
+│   ├── quick-form.js     # Form input di modal Catat & sheet Ubah
 │   ├── receipt.js        # Pindai struk: ambil foto, kirim OCR, sheet konfirmasi
+│   ├── tx-view.js        # Baris transaksi, daftar per hari, sheet ubah, hapus
 │   ├── ui.js             # Tema, toast, bottom sheet, Pengaturan, panel akun, prompt install
 │   ├── auth.js           # Logika halaman masuk
-│   ├── catat.js          # Logika halaman Catat
-│   └── laporan.js        # Logika halaman Laporan
+│   ├── catat.js          # Beranda: saldo + tombol aksi + modal catat
+│   └── laporan.js        # Analitik + daftar transaksi lengkap
 ├── server.py             # Backend stdlib: auth, sesi, API, static, OCR, CLI
 ├── receipt.py            # Parser struk (nominal, tanggal, item, peringatan) + CLI
 ├── tests/test_receipt.py # Unit test parser struk
