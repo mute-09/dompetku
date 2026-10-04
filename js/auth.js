@@ -105,9 +105,24 @@ dom.form.addEventListener('submit', async (event) => {
   }
 });
 
+function showAlasanKeluar() {
+  const params = new URLSearchParams(location.search);
+  const alasan = params.get('alasan');
+  if (!alasan) return;
+  params.delete('alasan');
+  const cleaned = `${location.pathname}${params.toString() ? `?${params}` : ''}`;
+  history.replaceState(null, '', cleaned);
+  if (alasan === 'keluar') {
+    dom.slots.textContent = 'Anda sudah keluar. Silakan masuk kembali.';
+    dom.slots.hidden = false;
+  } else if (alasan === 'gagal') {
+    showError('Gagal menghubungi server saat keluar. Periksa koneksi, lalu coba lagi.');
+  }
+}
+
 guard().then((passed) => {
   if (!passed) {
-    refreshSlots();
+    refreshSlots().then(showAlasanKeluar);
     dom.username.focus();
   }
 });

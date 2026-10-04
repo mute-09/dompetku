@@ -45,6 +45,9 @@ Beranda sengaja dibuat **ringkas**: saldo dan dua tombol. Semua input lain ada d
 - Login gagal 10 kali dalam 10 menit akan dikunci sementara.
 - Panel **Akun** (tombol avatar di appbar) menampilkan perangkat yang sedang login, ganti password,
   keluarkan sesi lain, dan keluar.
+- Tekan **Keluar** selalu berakhir di halaman masuk dengan penjelasan: *“Anda sudah keluar”* kalau
+  sesi berhasil diakhiri (atau memang sudah habis), dan pesan gagal yang jelas kalau server tak
+  terjangkau. Tidak pernah lagi menampilkan error teknis.
 
 ## Teknologi
 
@@ -214,6 +217,7 @@ dompetku/
 ├── server.py             # Backend stdlib: auth, sesi, API, static, OCR, CLI
 ├── receipt.py            # Parser struk (nominal, tanggal, item, peringatan) + CLI
 ├── tests/test_receipt.py # Unit test parser struk
+├── tests/test_http.py    # Regresi lapisan HTTP (drain body, error JSON, method asing)
 ├── deploy/               # Unit systemd + contoh reverse proxy Nginx
 ├── data/                 # SQLite (dibuat otomatis, tidak ikut rsync)
 ├── vendor/chart.umd.min.js
@@ -255,3 +259,12 @@ Cadangan rutin: **Laporan → Ekspor JSON**. Pemulihan tersedia di **Pengaturan 
 - Field `dibuat` dan `oleh` selalu diisi server; nilai dari klien diabaikan.
 - Seluruh teks dari pengguna aman dari XSS karena dirender lewat `textContent`, bukan `innerHTML`.
 - Tata letak `color-mix()` selalu disertai fallback deklarasi warna biasa untuk browser yang belum mendukungnya.
+- **Body permintaan selalu dibaca habis sebelum membalas.** Kalau tidak, sisa body menempel ke baris
+  permintaan berikutnya pada koneksi keep-alive dan klien menerima halaman error HTML Python
+  (`400 Bad request syntax` / `501 Unsupported method`) alih-alih JSON.PENanda body diulang tiap
+  permintaan karena satu koneksi melayani banyak permintaan.
+- Semua kesalahan dibalas sebagai JSON (termasuk 404/405/501), dan `OPTIONS` dijawab `204` +
+  `Allow`. Halaman login/beranda tidak pernah menampilkan halaman error Python.
+- Setiap respons `>= 400` dicatat satu baris ke journal (`[dompetku] METODE /path -> status`),
+  tanpa perlu `DOMPETKU_VERBOSE`, agar error UI bisa langsung ditelusuri.
+- `tests/test_http.py` mengunci semua jaminan di atas; jalankan `python3 -m unittest discover -s tests`.

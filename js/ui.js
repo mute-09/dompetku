@@ -400,7 +400,12 @@ export function openAccountSheet() {
             confirmLabel: 'Akhiri sesi lain'
           });
           if (!ok) return;
-          await api.logout('others');
+          try {
+            await api.logout('others');
+          } catch (err) {
+            toast({ message: err.message || 'Gagal mengeluarkan sesi lain.', tone: 'bad' });
+            return;
+          }
           toast({ message: 'Sesi lain dikeluarkan.', tone: 'good' });
           refreshSessions();
         }
@@ -411,12 +416,15 @@ export function openAccountSheet() {
         text: 'Keluar',
         onClick: async () => {
           handle.close();
+          // Sesi yang sudah habis pun tetap keluar ke halaman login; hanya
+          // kegagalan jaringan yang perlu diberi tahu pengguna.
+          let alasan = 'keluar';
           try {
             await api.logout('self');
-          } catch {
-            /* abaikan, tetap arahkan ke login */
+          } catch (err) {
+            if (!err.unauthorized) alasan = 'gagal';
           }
-          location.replace(new URL('login.html', document.baseURI).href);
+          location.replace(new URL(`login.html?alasan=${alasan}`, document.baseURI).href);
         }
       })
     ])

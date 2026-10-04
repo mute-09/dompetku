@@ -61,6 +61,7 @@ LOGIN_WINDOW = 600
 JSON_MAX_BYTES = 4_000_000
 MIN_PASSWORD_LENGTH = 6
 RESET_CONFIRM = "HAPUS SEMUA"
+ALLOWED_METHODS = "GET, HEAD, POST, PATCH, PUT, DELETE, OPTIONS"
 
 DEFAULT_USERS = ("buya", "ummah")
 DEFAULT_PASSWORD = os.environ.get("DOMPETKU_DEFAULT_PASSWORD", "rahasiasekali")
@@ -656,6 +657,8 @@ class Handler(BaseHTTPRequestHandler):
         return f"{browser} · {platform}"
 
     def read_json(self, max_bytes: int = JSON_MAX_BYTES) -> dict | None:
+        # Tandai body sudah ditangani agar drain_body() tidak membacanya dua kali.
+        self._body_done = True
         try:
             length = int(self.headers.get("Content-Length") or 0)
         except ValueError:
@@ -678,12 +681,43 @@ class Handler(BaseHTTPRequestHandler):
 
     def drain(self, length: int, chunk: int = 65536) -> None:
         """Baca dan buang sisa body agar koneksi tidak broken pipe."""
+        self._body_done = True
         remaining = length
         while remaining > 0:
             data = self.rfile.read(min(chunk, remaining))
             if not data:
                 break
             remaining -= len(data)
+
+    def handle_one_request(self):
+        # Bendera body harus diulang tiap permintaan: satu koneksi keep-alive
+        # melayani banyak permintaan dengan instance handler yang sama.
+        self._body_done = False
+        super().handle_one_request()
+
+    def drain_body(self, max_bytes: int = 8 * 1024 * 1024) -> None:
+        """Buang body yang belum dibaca sebelum membalas.
+
+        Tanpa ini, body permintaan akan ikut terbaca sebagai baris permintaan
+        berikutnya pada koneksi keep-alive, sehingga klien menerima halaman
+        error HTML Python (400/501 "Unsupported method") alih-alih JSON.
+        """
+        if getattr(self, "_body_done", False):
+            return
+        self._body_done = True
+        if "chunked" in (self.headers.get("Transfer-Encoding") or "").lower():
+            # Panjang tidak diketahui; lebih aman menutup koneksi.
+            self.close_connection = True
+            return
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            length = 0
+        if length <= 0:
+            return
+        self.drain(min(length, max_bytes))
+        if length > max_bytes:
+            self.close_connection = True
 
     def origin_ok(self) -> bool:
         origin = self.headers.get("Origin")
@@ -717,6 +751,7 @@ class Handler(BaseHTTPRequestHandler):
         return row
 
     def send_json(self, status: int, payload: dict, headers: dict | None = None) -> None:
+        self.drain_body()
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
@@ -732,9 +767,53 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header(key, value)
         self.end_headers()
         self.wfile.write(body)
+        if status >= 400:
+            self.log_problem(status)
+
+    def log_problem(self, status: int) -> None:
+        """Catat kegagalan ke journal (tanpa verbose) agar mudah ditelusuri."""
+        try:
+            path = urllib.parse.urlparse(self.path).path
+        except Exception:
+            path = "-"
+        agent = (self.headers.get("User-Agent") or "-")[:60].replace("\n", " ")
+        print(f"[dompetku] {self.command} {path} -> {status} dari {self.client_address[0]} ua={agent}",
+              file=sys.stderr, flush=True)
+
+    def send_error(self, code, message=None, explain=None):  # noqa: D102
+        """Balas sebagai JSON, bukan halaman HTML bawaan Python."""
+        note = str(message) if message else "Permintaan tidak valid."
+        if explain:
+            note = f"{note} ({explain})"
+        headers = {"Connection": "close"}
+        if code == 405:
+            headers["Allow"] = ALLOWED_METHODS
+        self.close_connection = True
+        self.send_json(code, {"error": note}, headers=headers)
+
+    def __getattr__(self, name: str):
+        """Tangkap method HTTP tak dikenal -> JSON 501, bukan HTML 501."""
+        if name.startswith("do_"):
+            method = name[3:]
+            return lambda: self.unsupported_method(method)
+        raise AttributeError(name)
+
+    def unsupported_method(self, method: str) -> None:
+        self.close_connection = True
+        self.log_problem(501)
+        self.send_json(501, {"error": f"Metode {method} tidak didukung."},
+                       headers={"Connection": "close", "Allow": ALLOWED_METHODS})
+
+    def do_OPTIONS(self):  # noqa: N802
+        self.drain_body()
+        self.send_response(204)
+        self.send_header("Allow", ALLOWED_METHODS)
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
 
     def send_bytes(self, body: bytes, content_type: str, status: int = 200, cache: str = "no-cache",
                    headers: dict | None = None) -> None:
+        self.drain_body()
         self.send_response(status)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
