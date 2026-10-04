@@ -6,6 +6,10 @@ import { dailyAverage, resolveRange, summarize } from './analytics.js';
 import { initTheme, onThemeChange, openSettings, openSheet, setupInstall, setupSyncBadge, setupThemeToggle, toast } from './ui.js';
 import { clearNode, el, formatDate, formatRupiah, todayStr } from './utils.js';
 
+// Fitur "Pindai Struk" (OCR) belum diaktifkan: hasil pembacaan struk masih
+// sering salah, jadi tombolnya disembunyikan. Set true untuk menghidupkan lagi.
+const SCAN_STRUK_ENABLED = false;
+
 const dom = {
   appbar: document.getElementById('appbar'),
   appbarSub: document.getElementById('appbarSub'),
@@ -93,8 +97,10 @@ function openCatatSheet(type) {
 
   const body = el('div', { class: 'sheet-form' }, [form.root]);
 
-  // Pindai struk hanya ada di modal pengeluaran, supaya beranda tetap ringkas.
-  if (isExpense) {
+  // Pindai struk disembunyikan sementara: hasil OCR masih belum rapi untuk
+  // dipakai harian. Kode dan endpoint-nya tetap utuh; cukup ubah ke true
+  // untuk menghidupkan lagi.
+  if (isExpense && SCAN_STRUK_ENABLED) {
     const scanMount = el('div', { class: 'sheet-form__scan' });
     body.append(scanMount);
     teardownScanner = setupReceiptScanner({
