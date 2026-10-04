@@ -138,9 +138,20 @@ def _tokens(line: str) -> list[str]:
     return [t for t in re.split(r"\s{2,}|\t", line.strip()) if t]
 
 
-TRAILING_NUMBER = re.compile(r"^(?P<label>.*?)\s*(?P<num>\(?-?\d[\d.,]*\)?)\s*$")
+# Angka dengan pemisah ribuan spasi, mis. "92 800" atau "1 250 000".
+# Tesseract sering menulis pemisah ribuan sebagai spasi, jadi bentuk ini harus
+# dikenali utuh; kalau tidak, "TOTAL 92 800" terpecah jadi label "TOTAL 92"
+# dan angka "800".
+SPACED_GROUP = r"\(?-?\d{1,3}(?:\s\d{3})+"
+PLAIN_NUMBER = r"\(?-?\d[\d.,]*\)?"
+TRAILING_NUMBER = re.compile(
+    rf"^(?P<label>.*?)\s*(?<!\d)(?P<num>{SPACED_GROUP}|{PLAIN_NUMBER})\s*$"
+)
 # "2 x 4.500", "2X4.500", atau "2 4.500" di ujung label = qty x harga satuan.
-QTY_TAIL = re.compile(r"(?:^|\s)(?P<qty>\d{1,3})\s*(?:[xX@]|\s)\s*(?P<unit>\d[\d.,]*)\s*$")
+# Harga satuan juga boleh memakai pemisah ribuan spasi: "1 x 54 300".
+QTY_TAIL = re.compile(
+    rf"(?:^|\s)(?P<qty>\d{{1,3}})\s*(?:[xX@]|\s)\s*(?P<unit>{SPACED_GROUP}|{PLAIN_NUMBER})\s*$"
+)
 
 
 def split_line(line: str) -> tuple[str, int | None] | None:

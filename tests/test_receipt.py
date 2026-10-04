@@ -6,7 +6,7 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from receipt import parse_amount, parse_receipt  # noqa: E402
+from receipt import parse_amount, parse_receipt, split_line  # noqa: E402
 
 
 class TestParseAmount(unittest.TestCase):
@@ -22,6 +22,67 @@ class TestParseAmount(unittest.TestCase):
 
     def test_negatif(self):
         self.assertEqual(parse_amount("-5.000"), -5000)
+
+
+class TestPemisahRibuanSpasi(unittest.TestCase):
+    """Regresi: angka dengan pemisah ribuan spasi tidak boleh terpotong.
+
+    Gejalanya di lapangan: ``TOTAL 92 800`` terbaca ``800`` karena baris
+    terpecah menjadi label ``TOTAL 92`` + angka ``800``.
+    """
+
+    def test_parse_amount_menerima_spasi(self):
+        for raw, expected in [("92 800", 92800), ("1 250 000", 1250000), ("Rp 22 000", 22000)]:
+            with self.subTest(raw=raw):
+                self.assertEqual(parse_amount(raw), expected)
+
+    def test_split_line_total_dengan_spasi(self):
+        for line, expected in [
+            ("TOTAL 92 800", ("TOTAL", 92800)),
+            ("Total 1 250 000", ("Total", 1250000)),
+            ("GRAND TOTAL 69 800", ("GRAND TOTAL", 69800)),
+            ("JUMLAH 22 000", ("JUMLAH", 22000)),
+        ]:
+            with self.subTest(line=line):
+                self.assertEqual(split_line(line), expected)
+
+    def test_split_line_barang_dengan_spasi(self):
+        self.assertEqual(split_line("KOPI SUSU 22 000"), ("KOPI SUSU", 22000))
+
+    def test_qty_tetap_dihitung(self):
+        """Pemisah ribuan spasi tidak boleh meng_acak qty x harga satuan."""
+        for line, expected_label, expected_amount, expected_qty in [
+            ("Indomie Goreng 2 x 4.500 9.000", "Indomie Goreng", 9000, 2),
+            ("Indomie Goreng 2 4.500 9.000", "Indomie Goreng", 9000, 2),
+        ]:
+            with self.subTest(line=line):
+                hasil = parse_receipt(f"INDOMARET\n\n{line}\nTOTAL 9.000\n")
+                self.assertTrue(hasil["items"], "barang tidak terbaca")
+                self.assertEqual(hasil["items"][0]["label"], expected_label)
+                self.assertEqual(hasil["items"][0]["amount"], expected_amount)
+                self.assertEqual(hasil["items"][0]["qty"], expected_qty)
+
+    def test_struk_total_ribuan_spasi(self):
+        """Kasus nyata: total struk 92.800 salah terbaca 800."""
+        struk = """INDOMARET
+Jl. Merdeka No. 45
+10/04/2026 14:32
+
+Kopi Susu           22 000
+Roti Tawar Sari Roti                16 500
+Teh Botol           1 x 54 300       54 300
+TOTAL 92 800
+TUNAI                             100 000
+KEMBALIAN                           7 200
+"""
+        hasil = parse_receipt(struk)
+        self.assertEqual(hasil["total"]["value"], 92800)
+        self.assertEqual(hasil["total"]["source"], "label")
+        self.assertEqual(len(hasil["items"]), 3)
+        self.assertEqual(sum(i["amount"] for i in hasil["items"]), 92800)
+        pesan = [w["message"] for w in hasil["warnings"] if w["field"] == "total"]
+        self.assertFalse(pesan, f"total vs barang harus cocok, tapi dapat: {pesan}")
+        self.assertFalse(hasil["low_confidence"], "tidak ada field yang perlu dicek")
 
 
 class TestParseReceipt(unittest.TestCase):

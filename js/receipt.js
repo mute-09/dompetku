@@ -454,6 +454,7 @@ export function openReceiptReview({ result, onSaved }) {
   const engine = result?.engine || {};
   const subtitle = [
     engine.lang ? `OCR ${engine.lang}` : null,
+    engine.rotation ? `foto diluruskan ${engine.rotation}°` : null,
     engine.elapsed_ms != null ? `${Math.round(engine.elapsed_ms / 100) / 10}s` : null,
     draft.items.length ? `${draft.items.length} baris terbaca` : null
   ].filter(Boolean).join(' · ');

@@ -407,6 +407,18 @@ def tesseract_binary() -> str | None:
     return shutil.which("tesseract")
 
 
+def imagemagick_binary() -> str | None:
+    """Cari ImageMagick untuk memperbaiki orientasi foto struk."""
+    configured = os.environ.get("DOMPETKU_MAGICK")
+    if configured:
+        return configured if os.access(configured, os.X_OK) else None
+    for name in ("magick", "convert"):
+        found = shutil.which(name)
+        if found:
+            return found
+    return None
+
+
 def available_ocr_langs() -> list[str]:
     """Bahasa tesseract yang benar-benar terpasang.
 
@@ -583,28 +595,162 @@ def ocr_lines(image_path: Path, lang: str, psm: int = 6) -> tuple[str, dict[int,
     return "\n".join(lines), confidence
 
 
+def _auto_orient(src: Path, dst: Path) -> Path:
+    """Terapkan orientasi EXIF dulu supaya pengukuran sudut tidak keliru."""
+    binary = imagemagick_binary()
+    if binary:
+        try:
+            done = subprocess.run([binary, str(src), "-auto-orient", "-strip", str(dst)],
+                                  capture_output=True, text=True, timeout=OCR_TIMEOUT, check=False)
+            if done.returncode == 0 and dst.exists() and dst.stat().st_size > 0:
+                return dst
+        except (OSError, subprocess.SubprocessError):
+            pass
+    return src
+
+
+def _rotate_image(src: Path, dst: Path, degrees: int) -> bool:
+    """Putar foto (sekali jalan) supaya teks struk tegak."""
+    binary = imagemagick_binary()
+    if not binary:
+        return False
+    degrees %= 360
+    if degrees == 0:
+        return False
+    args = [binary, str(src), "-auto-orient", "-background", "white",
+            "-rotate", str(degrees), "-strip", str(dst)]
+    try:
+        done = subprocess.run(args, capture_output=True, text=True,
+                              timeout=OCR_TIMEOUT, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return done.returncode == 0 and dst.exists() and dst.stat().st_size > 0
+
+
+OSD_ROTATE = re.compile(r"Rotate:\s*(\d+)")
+OSD_DEGREES = re.compile(r"Orientation in degrees:\s*(\d+)")
+
+
+def detect_rotation(image_path: Path) -> int | None:
+    """Deteksi sudut putar foto lewat Orientation & Script Detection.
+
+    Mengembalikan derajat yang perlu ditambahkan agar foto tegak, atau None
+    kalau tesseract tidak yakin (terlalu sedikit teks, data OSD belum ada).
+    """
+    if not tesseract_binary():
+        return None
+    try:
+        done = _tesseract_run([str(image_path), "stdout", "--psm", "0",
+                               "-c", "min_characters_to_try=25"], "osd")
+    except (ValueError, OCRUnavailable):
+        return None
+    if done.returncode != 0:
+        return None
+    text = done.stdout or ""
+    match = OSD_ROTATE.search(text) or OSD_DEGREES.search(text)
+    if not match:
+        return None
+    degrees = int(match.group(1)) % 360
+    return degrees or None
+
+
+def _draft_quality(parsed: dict | None) -> int:
+    """Skor kualitas draf: makin tinggi makin yakin struk terbaca."""
+    if not parsed:
+        return 0
+    items = parsed.get("items") or []
+    score = min(len(items), 12) * 10
+    total = (parsed.get("total") or {}).get("value")
+    item_sum = parsed.get("item_sum")
+    if total:
+        score += 40
+    if total and item_sum and abs(total - item_sum) <= max(1, total // 100):
+        score += 30
+    if (parsed.get("merchant") or {}).get("value"):
+        score += 10
+    confidence = parsed.get("confidence")
+    if isinstance(confidence, (int, float)) and confidence > 0:
+        score += int(confidence / 10)
+    return score
+
+
+# Rotasi cadangan ketika hasil OCR pertama tetap jelek. OSD memberi arah
+# yang tepat; tanpa OSD kita coba dua arah dan berhenti begitu dapat draf
+# yang meyakinkan.
+def _fallback_candidates(rotation: int) -> list[int]:
+    if rotation in (90, 270):
+        return [(rotation + 180) % 360]
+    return [90, 270]
+
+
+DRAFT_GOOD_SCORE = 70
+
+
 def ocr_receipt(raw: bytes, extension: str, psm: int = 6) -> dict:
-    """OCR satu gambar struk -> teks mentah + draf terstruktur."""
+    """OCR satu gambar struk -> teks mentah + draf terstruktur.
+
+    Foto miring (HP difoto memiring) otomatis diluruskan: orientasi EXIF dibaca
+    lebih dulu, lalu sudut putar dideteksi dengan Orientation & Script
+    Detection. Kalau draf hasilnya tetap tidak meyakinkan, satu sudut cadangan
+    dicoba agar proses tidak meledak.
+    """
     lang, missing = resolve_ocr_lang()
     if not lang:
         raise OCRUnavailable(f"Mesin OCR belum siap. Jalankan: {OCR_INSTALL_HINT}")
     started = time.time()
+
+    def run(source: Path, rotation: int, how: str) -> dict:
+        text, confidence = ocr_lines(source, lang, psm)
+        parsed = receipt.parse_receipt(text, confidence) if text.strip() else None
+        return {"text": text, "confidence": confidence, "parsed": parsed,
+                "rotation": rotation, "source": how, "score": _draft_quality(parsed)}
+
     with tempfile.TemporaryDirectory(prefix="dompetku-ocr-") as workdir:
         target = Path(workdir) / f"struk{extension}"
         target.write_bytes(raw)
-        text, confidence = ocr_lines(target, lang, psm)
-    if not text.strip():
+        base = _auto_orient(target, Path(workdir) / f"exif{extension}")
+
+        rotation = detect_rotation(base) or 0
+        upright = Path(workdir) / f"upright{extension}"
+        if rotation and _rotate_image(base, upright, rotation):
+            best = run(upright, rotation, "osd")
+        else:
+            rotation = 0
+            best = run(base, 0, "apa-adanya")
+
+        if best["score"] < DRAFT_GOOD_SCORE:
+            # OSD bisa salah arah atau gagal; coba sudut lain, lalu berhenti
+            # begitu dapat draf yang meyakinkan atau waktu sudah habis.
+            for cadangan in _fallback_candidates(rotation):
+                if time.time() - started > OCR_TIMEOUT:
+                    break
+                other = Path(workdir) / f"rotate{cadangan}{extension}"
+                if not _rotate_image(base, other, cadangan):
+                    continue
+                trial = run(other, cadangan, "cadangan")
+                if trial["score"] > best["score"]:
+                    best = trial
+                if best["score"] >= DRAFT_GOOD_SCORE:
+                    break
+
+    if not best["text"].strip():
         raise ValueError("Teks tidak terbaca. Coba foto yang lebih terang, rapi, dan dekat.")
-    parsed = receipt.parse_receipt(text, confidence)
+    parsed = best["parsed"]
+    elapsed_ms = int((time.time() - started) * 1000)
+    print(f"[dompetku] ocr rotasi={best['rotation']} ({best['source']}) skor={best['score']} "
+          f"item={len(parsed['items'])} total={(parsed['total'] or {}).get('value')} {elapsed_ms}ms",
+          file=sys.stderr, flush=True)
     return {
-        "text": text,
+        "text": best["text"],
         "confidence": parsed["confidence"],
         "low_confidence": parsed["low_confidence"],
         "parsed": parsed,
         "engine": {
             "lang": lang,
             "psm": psm,
-            "elapsed_ms": int((time.time() - started) * 1000),
+            "rotation": best["rotation"],
+            "rotation_source": best["source"],
+            "elapsed_ms": elapsed_ms,
             "missing_langs": missing,
         },
     }

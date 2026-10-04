@@ -169,6 +169,18 @@ konfirmasi menampilkan:
   (mis. `TUNAT` untuk `TUNAI`).
 - Kalau jumlah barang tidak sama dengan total struk, muncul peringatan selisih.
 
+### Foto miring & nominal berformat spasi
+
+- Foto yang diambil dengan HP miring **diluruskan otomatis**: orientasi EXIF diterapkan lebih dulu,
+  lalu sudut putar dideteksi tesseract (Orientation & Script Detection, butuh data `osd`).
+  Kalau drafnya tetap tidak meyakinkan, server mencoba satu atau dua sudut cadangan dan memakai
+  hasil terbaik (skor: jumlah barang, total, kecocokan total vs jumlah barang, keyakinan OCR).
+- Fallback dibatasi satu proses per sudut dan berhenti begitu dapat draf yang baik, agar foto
+  yang sangat besar tidak membuat permintaan lama.
+- Nomor dengan pemisah ribuan **spasi** (`TOTAL 92 800`) dibaca utuh sebagai 92.800 — pola ini
+  sering dipakai printer struk dan sebelumnya terpotong jadi 800.
+- Sheet konfirmasi menampilkan info `foto diluruskan 90°` kalau auto-orientasi berjalan.
+
 ### Privasi & keamanan
 
 - Foto hanya hidup di direktori sementara server dan **langsung dihapus** setelah OCR; tidak
@@ -182,6 +194,7 @@ konfirmasi menampilkan:
 | Variabel | Default | Guna |
 | --- | --- | --- |
 | `DOMPETKU_TESSERACT` | cari di `PATH` | Lokasi binary tesseract |
+| `DOMPETKU_MAGICK` | cari `magick`/`convert` | Lokasi ImageMagick untuk meluruskan foto miring |
 | `DOMPETKU_OCR_LANG` | `ind`, `eng` | Urutan bahasa pilihan; yang tidak terpasang akan dilewati |
 | `DOMPETKU_OCR_TIMEOUT` | `45` | Batas detik per proses OCR |
 | `DOMPETKU_OCR_MAX_BYTES` | `8388608` | Batas ukuran gambar (8 MB) |
@@ -218,6 +231,7 @@ dompetku/
 ├── receipt.py            # Parser struk (nominal, tanggal, item, peringatan) + CLI
 ├── tests/test_receipt.py # Unit test parser struk
 ├── tests/test_http.py    # Regresi lapisan HTTP (drain body, error JSON, method asing)
+├── tests/test_ocr_image.py # Regresi orientasi foto & pembacaan struk dari gambar
 ├── deploy/               # Unit systemd + contoh reverse proxy Nginx
 ├── data/                 # SQLite (dibuat otomatis, tidak ikut rsync)
 ├── vendor/chart.umd.min.js
