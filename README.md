@@ -185,6 +185,19 @@ konfirmasi menampilkan:
   sering dipakai printer struk dan sebelumnya terpotong jadi 800.
 - Sheet konfirmasi menampilkan info `foto diluruskan 90°` kalau auto-orientasi berjalan.
 
+### Pembaruan otomatis (PWA)
+
+- PWA yang terpasang di home screen tidak punya tombol refresh. Aplikasi cek versi sendiri:
+  `/api/health` melaporkan `version`, dan kalau server lebih baru dari shell yang sedang
+  berjalan, muncul notifikasi **“Pembaruan DompetKu tersedia”** dengan tombol **Muat ulang**.
+- Tombol itu memaksa `serviceWorker.update()` dan menunggu SW baru aktif (cache baru terisi)
+  sebelum `location.reload()`, jadi setelah reload benar-benar dapat kode terbaru.
+- Pemeriksaan berjalan 4 detik setelah buka, tiap kali tab kembali terlihat, dan tiap 10 menit.
+- `/api/health` tidak pernah di-cache service worker, jadi versinya selalu benar.
+- **Setiap rilis wajib menaikkan tiga angka ini:** `APP_VERSION` di `server.py`,
+  `APP_VERSION` di `js/utils.js`, dan `CACHE_NAME` di `sw.js`. `tests/test_version.py`
+  gagal kalau ada yang lupa.
+
 ### Privasi & keamanan
 
 - Foto hanya hidup di direktori sementara server dan **langsung dihapus** setelah OCR; tidak
@@ -236,6 +249,7 @@ dompetku/
 ├── tests/test_receipt.py # Unit test parser struk
 ├── tests/test_http.py    # Regresi lapisan HTTP (drain body, error JSON, method asing)
 ├── tests/test_ocr_image.py # Regresi orientasi foto & pembacaan struk dari gambar
+├── tests/test_version.py  # Jaga versi app sinkron antara server, klien, dan SW
 ├── deploy/               # Unit systemd + contoh reverse proxy Nginx
 ├── data/                 # SQLite (dibuat otomatis, tidak ikut rsync)
 ├── vendor/chart.umd.min.js

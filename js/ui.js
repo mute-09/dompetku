@@ -1,4 +1,4 @@
-import { ICONS, el, formatRupiah, svgIcon, clearNode, clamp, formatDate } from './utils.js';
+import { APP_VERSION, ICONS, el, formatRupiah, svgIcon, clearNode, clamp, formatDate } from './utils.js';
 import { api } from './api.js';
 import * as store from './store.js';
 
@@ -91,6 +91,73 @@ export function toast({ message, tone = 'neutral', icon, actionLabel, onAction, 
   root.append(node);
   timer = setTimeout(dismiss, duration);
   return dismiss;
+}
+
+/* === Deteksi Pembaruan === */
+
+let updateDismiss = null;
+
+/** Muat ulang shell dengan service worker dijamin terisi versi baru. */
+async function muatUlangShell() {
+  if ('serviceWorker' in navigator) {
+    try {
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (reg) {
+        await reg.update();
+        const baru = reg.installing || reg.waiting;
+        if (baru) {
+          await new Promise((resolve) => {
+            const selesai = () => {
+              if (baru.state === 'activated' || baru.state === 'redundant') resolve();
+            };
+            baru.addEventListener('statechange', selesai);
+            selesai();
+            setTimeout(resolve, 5000);
+          });
+        }
+      }
+    } catch {
+      /* gagal cek: muat ulang saja, andalkan service worker mengisi cache */
+    }
+  }
+  location.reload();
+}
+
+/**
+ * PWA yang terpasang di home screen tidak punya tombol refresh. Server
+ * melaporkan versinya lewat /api/health (tidak pernah di-cache); kalau lebih
+ * baru dari shell yang sedang berjalan, tawarkan tombol muat ulang.
+ */
+export function setupUpdateCheck({ intervalMs = 10 * 60 * 1000 } = {}) {
+  let sedangCek = false;
+
+  const cek = async () => {
+    if (sedangCek || document.visibilityState !== 'visible') return;
+    sedangCek = true;
+    try {
+      const res = await fetch('/api/health', { headers: { Accept: 'application/json' }, cache: 'no-store' });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!data.version || data.version === APP_VERSION || updateDismiss) return;
+      updateDismiss = toast({
+        message: `Pembaruan DompetKu tersedia (${data.version}). Muat ulang agar fitur terbaru muncul.`,
+        tone: 'warn',
+        actionLabel: 'Muat ulang',
+        onAction: muatUlangShell,
+        duration: 60 * 1000
+      });
+    } catch {
+      /* offline atau server tak terjangkau: coba lagi nanti */
+    } finally {
+      sedangCek = false;
+    }
+  };
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') cek();
+  });
+  setTimeout(cek, 4000);
+  setInterval(cek, intervalMs);
 }
 
 /* === Bottom Sheet === */

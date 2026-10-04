@@ -3,7 +3,7 @@ import { setupReceiptScanner } from './receipt.js';
 import * as store from './store.js';
 import { openEditSheet } from './tx-view.js';
 import { dailyAverage, resolveRange, summarize } from './analytics.js';
-import { initTheme, onThemeChange, openSettings, openSheet, setupInstall, setupSyncBadge, setupThemeToggle, toast } from './ui.js';
+import { initTheme, onThemeChange, openSettings, openSheet, setupInstall, setupSyncBadge, setupUpdateCheck, setupThemeToggle, toast } from './ui.js';
 import { clearNode, el, formatDate, formatRupiah, todayStr } from './utils.js';
 
 // Fitur "Pindai Struk" (OCR) belum diaktifkan: hasil pembacaan struk masih
@@ -140,6 +140,7 @@ initTheme();
 setupThemeToggle(dom.themeToggle, () => store.getState().settings.theme);
 setupSyncBadge(dom.syncBadge, dom.accountBtn);
 setupInstall();
+setupUpdateCheck();
 
 dom.appbarSub.textContent = formatDate(todayStr(), 'day');
 renderAll();

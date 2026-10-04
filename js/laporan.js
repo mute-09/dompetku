@@ -16,7 +16,7 @@ import {
 } from './analytics.js';
 import { chartAvailable, createCashflowChart, createCategoryChart, destroyChart } from './charts.js';
 import { filterTransactions, openEditSheet, renderTxList } from './tx-view.js';
-import { initTheme, onThemeChange, openSettings, setupInstall, setupSyncBadge, setupThemeToggle, toast } from './ui.js';
+import { initTheme, onThemeChange, openSettings, setupInstall, setupSyncBadge, setupUpdateCheck, setupThemeToggle, toast } from './ui.js';
 import { ICONS, clearNode, el, formatRupiah, formatPercent, svgIcon, todayStr, toDateStr } from './utils.js';
 
 const VIEW_KEY = 'dompetku.view.v2';
@@ -563,6 +563,7 @@ initTheme();
 setupThemeToggle(dom.themeToggle, () => store.getState().settings.theme);
 setupSyncBadge(dom.syncBadge, dom.accountBtn);
 setupInstall();
+setupUpdateCheck();
 
 dom.cumulativeToggle.checked = view.cumulative;
 

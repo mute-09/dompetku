@@ -66,6 +66,10 @@ ALLOWED_METHODS = "GET, HEAD, POST, PATCH, PUT, DELETE, OPTIONS"
 DEFAULT_USERS = ("buya", "ummah")
 DEFAULT_PASSWORD = os.environ.get("DOMPETKU_DEFAULT_PASSWORD", "rahasiasekali")
 
+# Versi aplikasi. Harus sama dengan APP_VERSION di js/utils.js; app menampilkan
+# tombol muat ulang kalau server sudah lebih baru dari shell yang berjalan.
+APP_VERSION = os.environ.get("DOMPETKU_VERSION", "v7")
+
 SCRYPT_N = 1 << 14
 SCRYPT_R = 8
 SCRYPT_P = 1
@@ -1073,6 +1077,7 @@ class Handler(BaseHTTPRequestHandler):
     def api_health(self, method: str, query: dict) -> None:
         self.send_json(200, {
             "status": "ok",
+            "version": APP_VERSION,
             "sessions": {"used": len(active_sessions()), "max": MAX_SESSIONS},
             "ocr": ocr_status(),
         })
