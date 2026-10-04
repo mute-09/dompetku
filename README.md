@@ -212,7 +212,24 @@ dompetku/
 ├── sw.js
 ├── manifest.json
 └── icons/
+    ├── build-icons.sh    # Bangun ulang semua ikon PWA/favicon dari logo appbar
+    ├── icon.svg          # Favicon + ikon "any" (sudut bulat)
+    ├── icon-maskable.svg # Varian maskable (latar penuh, logo lebih kecil)
+    └── *.png             # 32/180/192/512 + varian maskable
 ```
+
+### Ikon PWA
+
+Semua ikon memakai geometri logo appbar dengan gaya stroke yang sama seperti ikon di
+dalam aplikasi (`stroke-width` 2,2, ujung bulat, tanpa isian). Setelah logo di
+`index.html` berubah, bangun ulang semua ukuran:
+
+```bash
+bash icons/build-icons.sh   # butuh rsvg-convert
+```
+
+Varian `maskable` memakai latar penuh tanpa pembulatan dan logo berada di zona aman 80%
+supaya tidak terpotong saat Android memotong ikon.
 
 ## Data & Cadangan
 

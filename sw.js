@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dompetku-v4';
+const CACHE_NAME = 'dompetku-v5';
 const APP_SHELL = [
   './',
   './index.html',
@@ -25,6 +25,8 @@ const APP_SHELL = [
   './icons/icon.svg',
   './icons/icon-192.png',
   './icons/icon-512.png',
+  './icons/icon-maskable-192.png',
+  './icons/icon-maskable-512.png',
   './icons/apple-touch-icon.png'
 ];
 
