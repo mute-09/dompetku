@@ -800,7 +800,6 @@ class Handler(BaseHTTPRequestHandler):
 
     def unsupported_method(self, method: str) -> None:
         self.close_connection = True
-        self.log_problem(501)
         self.send_json(501, {"error": f"Metode {method} tidak didukung."},
                        headers={"Connection": "close", "Allow": ALLOWED_METHODS})
 
