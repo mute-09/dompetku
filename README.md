@@ -41,6 +41,10 @@ Beranda sengaja dibuat **ringkas**: saldo dan dua tombol. Semua input lain ada d
 
 - Dua akun saja: `buya` dan `ummah`, password awal `rahasiasekali` (segera ganti lewat **Akun → Ganti password**).
 - Maksimal **2 sesi aktif** untuk seluruh perangkat, bukan per akun.
+- **Satu akun hanya boleh punya satu sesi aktif.** Login ulang (misalnya setelah cache PWA
+  dibersihkan atau cookie hilang) otomatis mencabut sesi lama akun yang sama, jadi kuota tidak
+  habis dipakai oleh satu orang. Efeknya: login dari perangkat kedua akan mengeluarkan
+  perangkat pertama.
 - Sesi memakai cookie `HttpOnly` + `SameSite=Lax`, idle 30 hari, dan cookie `Secure` otomatis bila diakses via HTTPS.
 - Login gagal 10 kali dalam 10 menit akan dikunci sementara.
 - Panel **Akun** (tombol avatar di appbar) menampilkan perangkat yang sedang login, ganti password,

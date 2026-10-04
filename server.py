@@ -233,6 +233,10 @@ def active_sessions() -> list[sqlite3.Row]:
 def create_session(username: str, address: str, device: str) -> str:
     token = secrets.token_urlsafe(32)
     timestamp = now()
+    # Satu akun = satu sesi aktif. Kalau login lagi (misalnya cookie hilang
+    # setelah cache dibersihkan), sesi lama akun yang sama dicabut supaya
+    # kuota sesi tidak terpakai dua kali oleh orang yang sama.
+    db().execute("DELETE FROM sessions WHERE username=?", (username,))
     db().execute(
         "INSERT INTO sessions(token, username, dibuat, terakhir, alamat, perangkat) VALUES(?,?,?,?,?,?)",
         (token, username, timestamp, timestamp, address[:64], device[:120]),

@@ -169,5 +169,48 @@ class TestErrorSelaluJson(ServerTestCase):
         self.assertNotIn(b"<!DOCTYPE", raw)
 
 
+class TestSesiSatuPerAkun(ServerTestCase):
+    """Satu orang tidak boleh memakan dua slot sesi."""
+
+    def setUp(self):
+        server.db().execute("DELETE FROM sessions")
+
+    def login(self, username="buya", password=None):
+        status, headers, raw = self.request("POST", "/api/login", body={
+            "username": username, "password": password or server.DEFAULT_PASSWORD
+        })
+        return status, headers, raw
+
+    def test_login_ulang_mengganti_sesi_lama(self):
+        status, headers, _ = self.login()
+        self.assertEqual(status, 200)
+        lama = headers["Set-Cookie"].split(";")[0]
+        self.assertEqual(server.active_sessions()[0]["username"], "buya")
+
+        # Cookie hilang (mis. cache PWA dibersihkan) -> login lagi.
+        status, headers, _ = self.login()
+        self.assertEqual(status, 200)
+        baru = headers["Set-Cookie"].split(";")[0]
+
+        sesi = server.active_sessions()
+        self.assertEqual(len(sesi), 1, f"harus satu sesi, dapat {len(sesi)}")
+        self.assertNotEqual(lama, baru)
+
+    def test_sesi_orang_lain_tidak_ikut_tercabut(self):
+        _, headers_buya, _ = self.login("buya")
+        _, headers_ummah, _ = self.login("ummah")
+        self.assertEqual(len(server.active_sessions()), 2)
+
+        self.login("buya")
+        sisa = {s["username"] for s in server.active_sessions()}
+        self.assertEqual(sisa, {"buya", "ummah"})
+
+    def test_kuota_dua_orang_utuh(self):
+        for username in ("buya", "ummah", "buya", "ummah"):
+            self.login(username)
+        self.assertEqual(server.active_sessions()[0]["username"], "ummah")
+        self.assertLessEqual(len(server.active_sessions()), server.MAX_SESSIONS)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
