@@ -1,5 +1,5 @@
 // Naikkan setiap rilis вместе APP_VERSION di server.py (dicek oleh tests/test_version.py).
-export const APP_VERSION = 'v7';
+export const APP_VERSION = 'v8';
 
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
 const MONTHS_LONG = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];

@@ -68,7 +68,7 @@ DEFAULT_PASSWORD = os.environ.get("DOMPETKU_DEFAULT_PASSWORD", "rahasiasekali")
 
 # Versi aplikasi. Harus sama dengan APP_VERSION di js/utils.js; app menampilkan
 # tombol muat ulang kalau server sudah lebih baru dari shell yang berjalan.
-APP_VERSION = os.environ.get("DOMPETKU_VERSION", "v7")
+APP_VERSION = os.environ.get("DOMPETKU_VERSION", "v8")
 
 SCRYPT_N = 1 << 14
 SCRYPT_R = 8
