@@ -778,7 +778,12 @@ STATIC_TYPES = {
 }
 SKIP_FILES = {"server.py", "sw.js.orig"}
 SKIP_DIRS = {"data", "deploy", "__pycache__", ".git"}
-NO_CACHE = {".html", ".json", ".webmanifest"}
+# Shell PWA (HTML/JS/CSS) harus selalu bisa direvalidasi: kalau proxy seperti
+# Cloudflare menyimpan JS lama selama berjam-jam, pengguna tidak pernah melihat
+# rilis baru meski sudah "muat ulang". Cache jangka panjangnya dipegang service worker di sisi klien.
+NO_CACHE = {".html", ".json", ".webmanifest", ".js", ".css"}
+# Service worker selalu harus segar; jangan pernah disimpan proxy mana pun.
+NO_STORE = {"sw.js"}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -1054,7 +1059,12 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_bytes(body, STATIC_TYPES[".html"])
         suffix = target.suffix.lower()
         content_type = STATIC_TYPES.get(suffix) or mimetypes.guess_type(str(target))[0] or "application/octet-stream"
-        cache = "no-cache" if suffix in NO_CACHE else "public, max-age=3600"
+        if target.name in NO_STORE:
+            cache = "no-store"
+        elif suffix in NO_CACHE:
+            cache = "no-cache"
+        else:
+            cache = "public, max-age=3600"
         self.send_bytes(target.read_bytes(), content_type, cache=cache)
 
     # api

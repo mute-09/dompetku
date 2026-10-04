@@ -198,6 +198,17 @@ konfirmasi menampilkan:
   `APP_VERSION` di `js/utils.js`, dan `CACHE_NAME` di `sw.js`. `tests/test_version.py`
   gagal kalau ada yang lupa.
 
+### Cache & proxy di depan
+
+- Shell (`.html`, `.js`, `.css`, `.json`) dikirim `Cache-Control: no-cache` — proxy di depan
+  (mis. Cloudflare) harus revalidasi, bukan menyajikan file lama selama berjam-jam.
+- `sw.js` dikirim `no-store` supaya proxy tidak pernah menahan versi service worker.
+- Hanya gambar (`icons/`) yang memakai cache panjang.
+- Cache jangka panjang aplikasi tetap dipegang service worker di browser, jadi file statis
+  tidak membanjiri origin.
+- Gejala kalau aturan ini dilonggarkan: PWA menampilkan fitur lama tanpa HRT meski sudah
+  "muat ulang", karena browser menerima JS usang dari proxy.
+
 ### Privasi & keamanan
 
 - Foto hanya hidup di direktori sementara server dan **langsung dihapus** setelah OCR; tidak

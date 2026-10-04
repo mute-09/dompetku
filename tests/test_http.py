@@ -212,5 +212,27 @@ class TestSesiSatuPerAkun(ServerTestCase):
         self.assertLessEqual(len(server.active_sessions()), server.MAX_SESSIONS)
 
 
+class TestCacheShellSelaluSegar(ServerTestCase):
+    """Proxy seperti Cloudflare tidak boleh menyajikan JS/SW lama berjam-jam."""
+
+    def cache_of(self, path):
+        status, headers, _ = self.request("GET", path)
+        self.assertEqual(status, 200)
+        return headers.get("Cache-Control", "")
+
+    def test_sw_js_tidak_pernah_disimpan(self):
+        self.assertIn("no-store", self.cache_of("/sw.js"))
+
+    def test_js_css_html_bisa_revalidasi(self):
+        for path in ("/index.html", "/js/catat.js", "/css/base.css", "/manifest.json"):
+            with self.subTest(path=path):
+                self.assertIn("no-cache", self.cache_of(path))
+
+    def test_gambar_tetap_di_cache(self):
+        cache = self.cache_of("/icons/icon-192.png")
+        self.assertIn("max-age", cache)
+        self.assertNotIn("no-cache", cache)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
