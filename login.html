@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Masuk · DompetKu</title>
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#0b0d14">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/auth.css">
+</head>
+<body class="auth">
+  <main class="auth__card">
+    <div class="auth__brand">
+      <span class="auth__logo" aria-hidden="true">💰</span>
+      <h1 class="auth__title">DompetKu</h1>
+      <p class="auth__subtitle">Masuk untuk membuka dompet keluarga.</p>
+    </div>
+
+    <form id="loginForm" class="auth__form" novalidate>
+      <div class="field">
+        <label class="field__label" for="username">Nama pengguna</label>
+        <input class="field__control" id="username" name="username" type="text" autocomplete="username"
+               autocapitalize="none" spellcheck="false" required maxlength="24" placeholder="buya">
+      </div>
+      <div class="field">
+        <label class="field__label" for="password">Password</label>
+        <div class="auth__password">
+          <input class="field__control" id="password" name="password" type="password" autocomplete="current-password"
+                 required maxlength="128" placeholder="••••••••">
+          <button class="auth__reveal" id="togglePassword" type="button" aria-label="Tampilkan password">Lihat</button>
+        </div>
+      </div>
+
+      <p class="auth__error" id="loginError" role="alert" hidden></p>
+      <p class="auth__slots" id="loginSlots" hidden></p>
+
+      <button class="btn btn--primary btn--block" id="loginButton" type="submit">Masuk</button>
+    </form>
+
+    <p class="auth__hint">Maksimal 2 perangkat bisa masuk bersamaan. Sesi otomatis berakhir setelah 30 hari tidak aktif.</p>
+  </main>
+
+  <script type="module" src="js/auth.js"></script>
+</body>
+</html>

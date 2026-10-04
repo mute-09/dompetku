@@ -1,0 +1,29 @@
+# Database & cache server — tidak pernah masuk repo
+data/
+*.db
+*.db-wal
+*.db-shm
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Rahasia
+.env
+.env.*
+*.pem
+*.key
+*.crt
+
+# Backup transaksi hasil ekspor pengguna
+dompetku-backup-*.json
+*.backup.json
+
+# OS & editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/

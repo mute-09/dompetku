@@ -1,0 +1,16 @@
+[Unit]
+Description=DompetKu (server keuangan rumah tangga)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/dompetku
+ExecStart=/usr/bin/python3 %h/dompetku/server.py serve --host 0.0.0.0 --port 8090
+Restart=on-failure
+RestartSec=3
+Environment=DOMPETKU_PORT=8090
+Environment=DOMPETKU_MAX_SESSIONS=2
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=default.target

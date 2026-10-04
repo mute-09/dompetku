@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0d14">
+  <meta name="description" content="Laporan keuangan rumah tangga: tren, komposisi kategori, insight, dan rincian lengkap.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="DompetKu">
+  <title>DompetKu — Laporan</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/laporan.css">
+  <script src="vendor/chart.umd.min.js" defer></script>
+  <script type="module" src="js/laporan.js"></script>
+</head>
+<body>
+  <div class="shell shell--wide">
+    <header class="appbar" id="appbar">
+      <div class="appbar__brand">
+        <span class="appbar__mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 7V5.5A1.5 1.5 0 0 0 17.5 4h-12A1.5 1.5 0 0 0 4 5.5v13A1.5 1.5 0 0 0 5.5 20h12a1.5 1.5 0 0 0 1.5-1.5V16"/>
+            <path d="M20.5 9.5h-4a2.5 2.5 0 0 0 0 5h4z"/>
+          </svg>
+        </span>
+        <div>
+          <h1 class="appbar__title">Laporan</h1>
+          <p class="appbar__sub" id="appbarSub">Ringkasan keuangan</p>
+        </div>
+      </div>
+      <div class="appbar__actions">
+        <span class="sync" id="syncBadge" data-tone="idle" hidden></span>
+        <button class="icon-btn" id="themeToggle" type="button" aria-label="Ganti tema"></button>
+        <button class="icon-btn" id="settingsBtn" type="button" aria-label="Pengaturan">
+          <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 14.5a1.6 1.6 0 0 0 .32 1.76l.06.06a2 2 0 1 1-2.83 2.83l-.05-.06a1.6 1.6 0 0 0-1.77-.32 1.6 1.6 0 0 0-.97 1.47V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1.05-1.46 1.6 1.6 0 0 0-1.76.32l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.6 1.6 0 0 0 .32-1.76 1.6 1.6 0 0 0-1.47-.98H4a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.46-1.04 1.6 1.6 0 0 0-.32-1.77l-.06-.05a2 2 0 1 1 2.83-2.83l.06.06a1.6 1.6 0 0 0 1.76.32H10a1.6 1.6 0 0 0 .98-1.47V4a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 .98 1.47 1.6 1.6 0 0 0 1.75-.33l.06-.05a2 2 0 1 1 2.83 2.83l-.06.06a1.6 1.6 0 0 0-.32 1.76V10c.11.61.62 1.05 1.24 1.06H20a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5.94z"/>
+          </svg>
+        </button>
+        <button class="icon-btn icon-btn--account" id="accountBtn" type="button" aria-label="Akun">?</button>
+      </div>
+    </header>
+
+    <main class="page">
+      <section class="card period" aria-label="Pilihan periode">
+        <div class="chips chips--scroll" id="periodChips" role="group" aria-label="Periode"></div>
+        <div class="period__nav">
+          <button class="period__step" id="prevPeriod" type="button" aria-label="Periode sebelumnya">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m14 6-6 6 6 6"/></svg>
+          </button>
+          <div class="period__label">
+            <p class="period__title" id="periodTitle"></p>
+            <p class="period__meta" id="periodMeta"></p>
+          </div>
+          <button class="period__step" id="nextPeriod" type="button" aria-label="Periode berikutnya">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m10 6 6 6-6 6"/></svg>
+          </button>
+        </div>
+        <div class="period__custom" id="customRange" hidden>
+          <label class="period__date">
+            <span>Dari</span>
+            <input type="date" id="fromDate">
+          </label>
+          <label class="period__date">
+            <span>Sampai</span>
+            <input type="date" id="toDate">
+          </label>
+        </div>
+      </section>
+
+      <section class="kpis" id="kpis" aria-label="Ringkasan angka"></section>
+
+      <section class="card">
+        <div class="card__head">
+          <h2 class="card__title">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V5"/><path d="M4 19h15"/><path d="M8 15v-4"/><path d="M13 15V8"/><path d="M17 15v-6"/></svg>
+            Tren arus kas
+          </h2>
+          <span class="card__hint" id="trendHint"></span>
+        </div>
+        <div class="chart-legend" id="cashflowLegend"></div>
+        <div class="chart chart--lg">
+          <canvas id="cashflowChart" role="img" aria-label="Grafik tren pemasukan dan pengeluaran"></canvas>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="cumulativeToggle">
+          <span>Tampilkan saldo kumulatif</span>
+        </label>
+      </section>
+
+      <section class="card">
+        <div class="card__head">
+          <h2 class="card__title">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9h-9z"/></svg>
+            Komposisi pengeluaran
+          </h2>
+          <span class="card__hint" id="compositionHint"></span>
+        </div>
+        <div class="donut">
+          <div class="chart chart--donut">
+            <canvas id="categoryChart" role="img" aria-label="Grafik komposisi pengeluaran per kategori"></canvas>
+          </div>
+          <ul class="legend" id="categoryLegend"></ul>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card__head">
+          <h2 class="card__title">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c1.6 3.2 1.6 6 0 9s-1.6 5.8 0 9"/><path d="M3.5 12c3.2-1.6 6-1.6 9 0s5.8 1.6 9 0"/></svg>
+            Pengeluaran terbesar
+          </h2>
+        </div>
+        <ol class="rank" id="topList"></ol>
+      </section>
+
+      <section class="card">
+        <div class="card__head">
+          <h2 class="card__title">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6"/><path d="M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.6.5.9 1.1 1 1.7h5.2c.1-.6.4-1.2 1-1.7A6 6 0 0 0 12 3Z"/></svg>
+            Insight
+          </h2>
+          <span class="card__hint">Otomatis dari data kamu</span>
+        </div>
+        <div class="insights" id="insights"></div>
+      </section>
+
+      <section class="card">
+        <div class="card__head">
+          <h2 class="card__title">Rincian per kategori</h2>
+          <button class="btn btn--ghost btn--sm" id="exportCsv" type="button">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>
+            CSV
+          </button>
+        </div>
+        <div class="table-wrap">
+          <table class="table" id="categoryTable">
+            <thead>
+              <tr>
+                <th scope="col">Kategori</th>
+                <th scope="col" class="ta-r">Transaksi</th>
+                <th scope="col" class="ta-r">Rata-rata</th>
+                <th scope="col" class="ta-r">Total</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+            <tfoot></tfoot>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card__head">
+          <h2 class="card__title">Sumber pemasukan</h2>
+          <span class="card__hint" id="incomeHint"></span>
+        </div>
+        <ul class="bars" id="incomeList"></ul>
+      </section>
+
+      <section class="card data-actions">
+        <div class="card__head">
+          <h2 class="card__title">Data & cadangan</h2>
+        </div>
+        <div class="data-actions__grid">
+          <button class="btn btn--ghost" id="exportCsvAll" type="button">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>
+            CSV periode ini
+          </button>
+          <button class="btn btn--ghost" id="exportJson" type="button">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M20 8.5 12 4 4 8.5"/><path d="M12 12v8"/></svg>
+            Backup JSON
+          </button>
+          <button class="btn btn--ghost" id="openSettings" type="button">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M4 12h2m12 0h2M12 4v2m0 12v2"/></svg>
+            Pengaturan
+          </button>
+        </div>
+        <p class="data-actions__hint">Data tersimpan di perangkat ini (localStorage). Unduh backup secara berkala agar tidak hilang saat data browser dibersihkan.</p>
+      </section>
+    </main>
+
+    <nav class="nav" aria-label="Navigasi utama">
+      <a class="nav__item" href="index.html">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 10.6 12 3.4l9 7.2"/><path d="M5.4 9.6V19a1.4 1.4 0 0 0 1.4 1.4h10.4A1.4 1.4 0 0 0 18.6 19V9.6"/><path d="M9.8 20.4v-5.2h4.4v5.2"/>
+        </svg>
+        Catat
+      </a>
+      <a class="nav__item is-active" href="laporan.html" aria-current="page">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 20V4"/><path d="M4 20h16"/><path d="M8 17v-5"/><path d="M13 17V7"/><path d="M18 17v-8"/>
+        </svg>
+        Laporan
+      </a>
+    </nav>
+  </div>
+</body>
+</html>

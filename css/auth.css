@@ -1,0 +1,118 @@
+.auth {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 1.25rem 1rem;
+  background:
+    radial-gradient(120% 90% at 50% -10%, rgba(34, 211, 238, 0.16), transparent 60%),
+    radial-gradient(90% 70% at 100% 110%, rgba(167, 139, 250, 0.14), transparent 55%),
+    var(--bg);
+}
+
+.auth__card {
+  width: min(26rem, 100%);
+  padding: 1.5rem 1.25rem 1.25rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+}
+
+.auth__brand {
+  text-align: center;
+  margin-bottom: 1.25rem;
+}
+
+.auth__logo {
+  display: inline-grid;
+  place-items: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  margin-bottom: 0.75rem;
+  border-radius: var(--radius-lg);
+  font-size: 1.6rem;
+  background: linear-gradient(145deg, rgba(34, 211, 238, 0.24), rgba(167, 139, 250, 0.18));
+  border: 1px solid var(--border-strong);
+}
+
+.auth__title {
+  margin: 0 0 0.25rem;
+  font-size: 1.5rem;
+  letter-spacing: -0.02em;
+}
+
+.auth__subtitle {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 0.9rem;
+}
+
+.auth__form {
+  display: grid;
+  gap: 1rem;
+}
+
+.auth__password {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.auth__password .field__control {
+  padding-right: 4.25rem;
+}
+
+.auth__reveal {
+  position: absolute;
+  right: 0.4rem;
+  padding: 0.35rem 0.6rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-soft);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.auth__reveal:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.auth__error {
+  margin: 0;
+  padding: 0.75rem;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  background: rgba(248, 113, 113, 0.12);
+  color: #fca5a5;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.auth__slots {
+  margin: 0;
+  padding: 0.75rem;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(251, 191, 36, 0.32);
+  background: rgba(251, 191, 36, 0.1);
+  color: #fcd34d;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.auth__hint {
+  margin: 1.25rem 0 0;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  line-height: 1.6;
+}
+
+@media (max-width: 26rem) {
+  .auth__card {
+    padding: 1.25rem 1rem;
+    border-radius: var(--radius-lg);
+  }
+}

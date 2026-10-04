@@ -1,0 +1,24 @@
+# Contoh reverse proxy Nginx untuk DompetKu di domain sendiri.
+# Salin ke /etc/nginx/sites-available/dompetku lalu symlink ke sites-enabled.
+
+server {
+    listen 80;
+    server_name dompetku.example.com;
+
+    # DompetKu hanya menandai cookie Secure bila X-Forwarded-Proto = https,
+    # jadi HTTP lokal tetap bisa dipakai.
+    location / {
+        proxy_pass http://127.0.0.1:8090;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_read_timeout 60s;
+    }
+}
+
+# Jika memakai HTTPS di domain, tambahkan blok 443 dengan sertifikat
+# (certbot --nginx) dan pastikan X-Forwarded-Proto diteruskan apa adanya.
+# Akses lewat HTTP LAN pada port 8090 tetap bisa dibuka langsung.
