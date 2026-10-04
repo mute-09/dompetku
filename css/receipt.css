@@ -1,0 +1,319 @@
+/* Pindai struk: tombol pemindai + sheet konfirmasi hasil OCR. */
+
+.rcpt__scan {
+  width: 100%;
+  margin-top: 0.75rem;
+}
+
+.rcpt__file {
+  display: none;
+}
+
+.rcpt__loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.5rem 0.5rem;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.rcpt__intro {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+/* Peringatan & tanda field ragukan */
+
+.rcpt__warnings:empty {
+  display: none;
+}
+
+.rcpt__warning {
+  display: flex;
+  gap: 0.4rem;
+  align-items: flex-start;
+  margin: 0 0 0.35rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--warn) 14%, transparent);
+  color: var(--text);
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.rcpt__warning svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--warn);
+}
+
+.rcpt__tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  margin-left: 0.35rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--warn) 18%, transparent);
+  color: var(--warn);
+  font-size: 0.68rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.field.is-suspect .field__control,
+input.is-suspect {
+  border-color: color-mix(in srgb, var(--warn) 55%, var(--border-strong));
+}
+
+/* Meta: toko / tanggal / total */
+
+.rcpt__meta {
+  display: grid;
+  gap: 0.6rem;
+  margin-bottom: 0.9rem;
+}
+
+@media (min-width: 640px) {
+  .rcpt__meta {
+    grid-template-columns: 1.4fr 1fr 1fr;
+  }
+}
+
+/* Daftar item */
+
+.rcpt__items-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.rcpt__items {
+  display: grid;
+  gap: 0.4rem;
+  margin-bottom: 0.9rem;
+}
+
+.rcpt__row {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface, #fff);
+}
+
+.rcpt__row.is-suspect {
+  border-color: color-mix(in srgb, var(--warn) 45%, var(--border));
+  background: color-mix(in srgb, var(--warn) 6%, var(--surface, #fff));
+}
+
+.rcpt__row:has(.rcpt__check:not(:checked)) {
+  opacity: 0.55;
+}
+
+.rcpt__check {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--primary);
+}
+
+.rcpt__row-main {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.rcpt__label-input {
+  width: 100%;
+  border: 0;
+  padding: 0.1rem 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+}
+
+.rcpt__label-input:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.rcpt__row-meta {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+  min-height: 14px;
+}
+
+.rcpt__qty {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.rcpt__warn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.68rem;
+  color: var(--warn);
+}
+
+.rcpt__row-amount {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.rcpt__rp {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.rcpt__amount-input {
+  width: 8ch;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 0.15rem 0.3rem;
+  background: color-mix(in srgb, currentColor 5%, transparent);
+  color: inherit;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.rcpt__amount-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  background: transparent;
+}
+
+.rcpt__empty {
+  margin: 0 0 0.5rem;
+  padding: 0.75rem;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.rcpt__add {
+  margin-top: 0.2rem;
+}
+
+/* Teks OCR mentah */
+
+.rcpt__raw {
+  margin-bottom: 0.9rem;
+}
+
+.rcpt__raw .disclosure__summary {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.rcpt__raw-text {
+  width: 100%;
+  margin-top: 0.4rem;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: color-mix(in srgb, currentColor 4%, transparent);
+  color: inherit;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  resize: vertical;
+  white-space: pre;
+}
+
+.rcpt__raw-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.4rem;
+}
+
+.rcpt__hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+/* Ringkasan bawah */
+
+.rcpt__summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin: 0 0 0.6rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.rcpt__summary:empty {
+  display: none;
+}
+/* Sheet review struk butuh ruang lebih tinggi dari sheet biasa. */
+
+.sheet--tall {
+  height: 92dvh;
+  max-height: 92dvh;
+}
+
+.sheet--tall .sheet__body {
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* Pemutar sederhana saat OCR berjalan (tidak pakai spinner bawaan base.css). */
+
+.rcpt__loading .spinner {
+  width: 26px;
+  height: 26px;
+  border: 3px solid var(--border-strong);
+  border-top-color: var(--primary);
+  border-radius: var(--radius-full);
+  animation: rcpt-spin 0.8s linear infinite;
+}
+
+@keyframes rcpt-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rcpt__loading .spinner {
+    animation-duration: 2.4s;
+  }
+}
+
+/* Tombol nonaktif ketika mesin OCR belum siap di server. */
+
+.rcpt__off {
+  margin-left: 0.3rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: var(--radius-full);
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.rcpt__scan:disabled {
+  opacity: 0.75;
+  cursor: not-allowed;
+}

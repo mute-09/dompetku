@@ -1,5 +1,6 @@
 import * as store from './store.js';
 import { createQuickForm } from './quick-form.js';
+import { setupReceiptScanner } from './receipt.js';
 import { dailyAverage, resolveRange, slice, summarize } from './analytics.js';
 import { initTheme, onThemeChange, openSheet, openSettings, setupInstall, setupSyncBadge, setupThemeToggle, toast } from './ui.js';
 import { ICONS, clearNode, el, formatDate, formatRupiah, relativeDayLabel, svgIcon, todayStr } from './utils.js';
@@ -17,6 +18,7 @@ const dom = {
   totalExpense: document.getElementById('totalExpense'),
   balanceStats: document.getElementById('balanceStats'),
   formMount: document.getElementById('quickFormMount'),
+  receiptMount: document.getElementById('receiptScanMount'),
   activityList: document.getElementById('activityList'),
   activityCount: document.getElementById('activityCount'),
   activityFilter: document.getElementById('activityFilter'),
@@ -209,6 +211,19 @@ const quickForm = createQuickForm({
 
 quickForm.setBalanceProvider(() => store.totals().balance);
 dom.formMount.append(quickForm.root);
+
+/* === Pindai struk (OCR) === */
+
+setupReceiptScanner({
+  mount: dom.receiptMount,
+  onSaved() {
+    ui.filter = 'all';
+    ui.query = '';
+    dom.searchInput.value = '';
+    ui.visible = PAGE_SIZE;
+    renderAll();
+  }
+});
 
 /* === Edit sheet === */
 

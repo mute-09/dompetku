@@ -11,6 +11,8 @@ Dibagi menjadi tiga halaman: **Masuk** untuk autentikasi, **Catat** untuk input,
 - Pratinjau **"Saldo setelah dicatat"** langsung di bawah nominal agar dampak transaksi terlihat sebelum disimpan.
 - **Aktivitas** dikelompokkan per hari lengkap dengan net per hari, saringan (Semua/Pengeluaran/Pemasukan), pencarian, dan penanda transaksi tidak biasa.
 - Transaksi bisa **diubah** (ketuk baris) dan **dihapus dengan undo**.
+- **Pindai struk (OCR)**: tombol kamera/foto (atau tempel dari clipboard) membaca struk belanja di
+  server, lalu membuka sheet konfirmasi sebelum menyimpan apa pun.
 
 ## Halaman 2 — Laporan (`laporan.html`)
 
@@ -120,6 +122,62 @@ Catatan teknis:
   **Proxied** (awan oranye). Cloudflare membuatnya otomatis saat Public Hostname ditambahkan.
 - Kalau IP publik atau ISP bermasalah, tunnel tetap bekerja karena tidak bergantung pada IP.
 
+## Pindai Struk (OCR)
+
+Tombol **Pindai struk** di halaman Catat mengirim foto struk ke server, dibaca dengan `tesseract`,
+lalu diuraikan oleh `receipt.py` menjadi draf: nama toko, tanggal, total, dan daftar barang.
+
+```bash
+# sekali saja di server (butuh sudo)
+sudo apt install tesseract-ocr tesseract-ocr-ind
+python3 server.py ocr            # cek kesiapan: binary, bahasa, install command bila kurang
+python3 server.py ocr struk.jpg  # uji OCR dari terminal, tampilkan teks + draf + peringatan
+```
+
+### Konfirmasi wajib — tidak ada yang langsung tersimpan
+
+OCR sering salah membaca angka dan huruf, jadi hasilnya **tidak pernah** langsung dicatat. Sheet
+konfirmasi menampilkan:
+
+- **Peringatan**: keyakinan OCR rendah, total tidak ditemukan, tanggal ambigu, atau total tidak
+  sama dengan jumlah item.
+- **Field bertanda "perlu dicek"**: toko, tanggal, dan total diberi penanda kuning bila tidak
+  terbaca atau hanya ditebak.
+- **Daftar barang**: tiap baris bisa diubah nominalnya, dicentang, di-uncheck agar tidak disimpan,
+  atau dihapus. Baris dengan keyakinan OCR rendah diberi badge **Perlu dicek**.
+- **Teks OCR mentah** yang bisa disunting, lalu pilih **Terapkan ulang** agar draf ikut dihitung
+  dari teks yang sudah dikoreksi. Kategori yang ditebak juga bisa diganti.
+- Tombol simpan menuliskan hanya baris yang dicentang, sebagai transaksi terpisah.
+
+### Cara parser memilih angka
+
+- Angka gaya Indonesia (`1.250.000`), gaya US (`1,250.00`), dan desimal (`45.000,50`) dinormalkan.
+- Baris `2 x 4.500` atau `2 4.500` dibaca sebagai qty × harga satuan.
+- Hanya baris **di atas** baris `TOTAL` yang dianggap barang, sehingga `TUNAI`, `KEMBALIAN`, dan
+  `BAYAR VIA QRIS` tidak ikut terimpan.
+- Kata kunci non-item dicocokkan sebagai kata utuh dengan toleransi satu huruf salah baca
+  (mis. `TUNAT` untuk `TUNAI`).
+- Kalau jumlah barang tidak sama dengan total struk, muncul peringatan selisih.
+
+### Privasi & keamanan
+
+- Foto hanya hidup di direktori sementara server dan **langsung dihapus** setelah OCR; tidak
+  pernah disimpan ke `data/` dan tidak pernah masuk ke git.
+- Server memvalidasi magic bytes berkas, membatasi ukuran (default 8 MB), dan menjalankan
+  `tesseract` tanpa shell dengan batas waktu.
+- Endpoint OCR butuh sesi login yang valid.
+
+### Environment
+
+| Variabel | Default | Guna |
+| --- | --- | --- |
+| `DOMPETKU_TESSERACT` | cari di `PATH` | Lokasi binary tesseract |
+| `DOMPETKU_OCR_LANG` | `ind`, `eng` | Urutan bahasa pilihan; yang tidak terpasang akan dilewati |
+| `DOMPETKU_OCR_TIMEOUT` | `45` | Batas detik per proses OCR |
+| `DOMPETKU_OCR_MAX_BYTES` | `8388608` | Batas ukuran gambar (8 MB) |
+
+---
+
 ## Struktur File
 
 ```
@@ -131,6 +189,7 @@ dompetku/
 │   ├── base.css          # Token desain, komponen dasar (tema, tombol, sheet, toast, akun)
 │   ├── auth.css          # Tampilan halaman masuk
 │   ├── catat.css         # Hero saldo, form input, daftar aktivitas
+│   ├── receipt.css       # Sheet konfirmasi hasil OCR struk
 │   └── laporan.css       # Periode, KPI, grafik, insight, tabel
 ├── js/
 │   ├── utils.js          # Format rupiah/tanggal, ikon, helper DOM
@@ -139,11 +198,14 @@ dompetku/
 │   ├── analytics.js      # Agregasi, rentang periode, deteksi anomali, insight
 │   ├── charts.js         # Wrapper Chart.js yang mengikuti tema
 │   ├── quick-form.js     # Form input yang dipakai di halaman Catat & sheet Ubah
+│   ├── receipt.js        # Pindai struk: ambil foto, kirim OCR, sheet konfirmasi
 │   ├── ui.js             # Tema, toast, bottom sheet, Pengaturan, panel akun, prompt install
 │   ├── auth.js           # Logika halaman masuk
 │   ├── catat.js          # Logika halaman Catat
 │   └── laporan.js        # Logika halaman Laporan
-├── server.py             # Backend stdlib: auth, sesi, API, static, CLI
+├── server.py             # Backend stdlib: auth, sesi, API, static, OCR, CLI
+├── receipt.py            # Parser struk (nominal, tanggal, item, peringatan) + CLI
+├── tests/test_receipt.py # Unit test parser struk
 ├── deploy/               # Unit systemd + contoh reverse proxy Nginx
 ├── data/                 # SQLite (dibuat otomatis, tidak ikut rsync)
 ├── vendor/chart.umd.min.js

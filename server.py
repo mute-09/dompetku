@@ -13,20 +13,29 @@ Perintah:
   python3 server.py user rm ummah
   python3 server.py sessions
   python3 server.py sessions revoke <token>
+  python3 server.py ocr --cek           # apakah mesin OCR terpasang
+  python3 server.py ocr struk.jpg       # uji OCR dari terminal
 """
 
 from __future__ import annotations
 
 import argparse
+import base64
+import binascii
+import csv
 import hashlib
 import hmac
+import io
 import json
 import mimetypes
 import os
 import re
 import secrets
+import shutil
 import sqlite3
+import subprocess
 import sys
+import tempfile
 import threading
 import time
 import urllib.parse
@@ -35,6 +44,8 @@ from datetime import datetime, timezone
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+
+import receipt
 
 ROOT = Path(__file__).resolve().parent
 DATA_DIR = Path(os.environ.get("DOMPETKU_DATA", ROOT / "data"))
@@ -47,6 +58,7 @@ SESSION_COOKIE_AGE = SESSION_IDLE_SECONDS
 SESSION_HANDSHAKE = int(os.environ.get("DOMPETKU_HANDSHAKE_MINUTES", "10")) * 60
 LOGIN_ATTEMPTS = 10
 LOGIN_WINDOW = 600
+JSON_MAX_BYTES = 4_000_000
 MIN_PASSWORD_LENGTH = 6
 RESET_CONFIRM = "HAPUS SEMUA"
 
@@ -365,6 +377,231 @@ def read_state() -> dict:
 
 # --- http -------------------------------------------------------------------
 
+# --- ocr struk --------------------------------------------------------------
+# OCR memakai tesseract di server. Hasil parser SELALU diperlakukan sebagai
+# draf: frontend wajib menampilkan teks mentah + daftar item agar pengguna
+# mengoreksi sebelum menyimpan.
+
+OCR_LANG_PREFERRED = ("ind", "eng")
+OCR_TIMEOUT = int(os.environ.get("DOMPETKU_OCR_TIMEOUT", "45"))
+OCR_MAX_BYTES = int(os.environ.get("DOMPETKU_OCR_MAX_BYTES", str(8 * 1024 * 1024)))
+# Base64 menambah ~33%, jadi batas JSON untuk unggahan foto lebih besar
+# dari batas gambar hasil decode.
+OCR_MAX_JSON_BYTES = int(os.environ.get("DOMPETKU_OCR_MAX_JSON", str(12 * 1024 * 1024)))
+OCR_INSTALL_HINT = "sudo apt install tesseract-ocr tesseract-ocr-ind"
+OCR_IMAGE_TYPES = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
+OCR_SIGNATURES = ((b"\xff\xd8\xff", "image/jpeg"), (b"\x89PNG\r\n\x1a\n", "image/png"))
+_OCR_LANGS: tuple[float, list[str]] | None = None
+
+
+class OCRUnavailable(Exception):
+    """Tesseract belum terpasang, atau bahasa yang dibutuhkan tidak ada."""
+
+
+def tesseract_binary() -> str | None:
+    configured = os.environ.get("DOMPETKU_TESSERACT")
+    if configured:
+        return configured if os.access(configured, os.X_OK) else None
+    return shutil.which("tesseract")
+
+
+def available_ocr_langs() -> list[str]:
+    """Bahasa tesseract yang benar-benar terpasang (cache 1 jam)."""
+    global _OCR_LANGS
+    if _OCR_LANGS and time.time() - _OCR_LANGS[0] < 3600:
+        return _OCR_LANGS[1]
+    binary = tesseract_binary()
+    langs: list[str] = []
+    if binary:
+        try:
+            done = subprocess.run([binary, "--list-langs"], capture_output=True, text=True,
+                                  timeout=20, check=False)
+        except (OSError, subprocess.SubprocessError):
+            done = None
+        for line in (done.stdout if done else "").splitlines()[1:]:
+            name = line.strip()
+            if name and re.fullmatch(r"[A-Za-z0-9_+.-]+", name):
+                langs.append(name)
+    _OCR_LANGS = (time.time(), langs)
+    return langs
+
+
+def resolve_ocr_lang() -> tuple[str, list[str]]:
+    """Pilih bahasa OCR dari yang benar-benar terpasang.
+
+    Kembalikan (bahasa_dipakai, preferensi_yang_belum_terpasang) supaya
+    server bisa memberi tahu operator apa yang perlu diinstal.
+    """
+    langs = available_ocr_langs()
+    preferred = [l for l in OCR_LANG_PREFERRED if l in langs]
+    missing = [l for l in OCR_LANG_PREFERRED if l not in langs]
+    chosen = "+".join(preferred) if preferred else (langs[0] if langs else "")
+    return chosen, missing
+
+
+def ocr_ready() -> bool:
+    """Tesseract jalan dan minimal punya satu bahasa yang bisa dipakai."""
+    return bool(resolve_ocr_lang()[0])
+
+
+def ocr_status() -> dict:
+    """Ringkasan readiness OCR untuk API health & UI."""
+    lang, missing = resolve_ocr_lang()
+    return {
+        "available": bool(lang),
+        "lang": lang or None,
+        "missing": missing,
+        "installed": available_ocr_langs(),
+        "hint": OCR_INSTALL_HINT if missing else "",
+    }
+
+
+def sniff_image(raw: bytes) -> str | None:
+    """Deteksi tipe gambar dari magic bytes, bukan dari nama berkas."""
+    for signature, mime in OCR_SIGNATURES:
+        if raw.startswith(signature):
+            return mime
+    if raw[:4] == b"RIFF" and raw[8:12] == b"WEBP":
+        return "image/webp"
+    return None
+
+
+def decode_image(value: str) -> tuple[bytes, str]:
+    """Terima data URL, validasi tipe + magic bytes, kembalikan (bytes, ekstensi).
+
+    Foto struk berisi data sensitif, jadi file hanya hidup di
+    TemporaryDirectory dan langsung terhapus setelah OCR selesai.
+    """
+    if not isinstance(value, str) or not value.startswith("data:image/"):
+        raise ValueError("Gambar tidak valid.")
+    header, _, payload = value.partition(",")
+    mime = header[5:].split(";")[0].strip().lower()
+    extension = OCR_IMAGE_TYPES.get(mime)
+    if not extension:
+        raise ValueError("Format gambar harus JPEG, PNG, atau WebP.")
+    try:
+        raw = base64.b64decode(payload, validate=True)
+    except (binascii.Error, ValueError):
+        raise ValueError("Gambar tidak bisa dibaca (base64 rusak).")
+    if not raw:
+        raise ValueError("Gambar kosong.")
+    if len(raw) > OCR_MAX_BYTES:
+        raise ValueError(f"Ukuran gambar maksimal {OCR_MAX_BYTES // (1024 * 1024)} MB.")
+    if sniff_image(raw) != mime:
+        raise ValueError("Isi gambar tidak cocok dengan format yang dikirim.")
+    return raw, extension
+
+
+def _tesseract_env() -> dict:
+    env = dict(os.environ)
+    env.setdefault("OMP_THREAD_LIMIT", "1")
+    return env
+
+
+def _tesseract_run(args: list[str], lang: str) -> subprocess.CompletedProcess:
+    binary = tesseract_binary()
+    if not binary:
+        raise OCRUnavailable(f"Mesin OCR belum terpasang di server. Jalankan: {OCR_INSTALL_HINT}")
+    try:
+        return subprocess.run([binary, *args, "-l", lang], capture_output=True, text=True,
+                              timeout=OCR_TIMEOUT, env=_tesseract_env(), check=False)
+    except subprocess.TimeoutExpired:
+        raise ValueError("OCR terlalu lama. Coba foto yang lebih terang atau potong bagian struk saja.")
+
+
+def ocr_lines(image_path: Path, lang: str, psm: int = 6) -> tuple[str, dict[int, float]]:
+    """Jalankan tesseract mode TSV lalu rakit kembali teks per baris.
+
+    TSV tesseract menyimpan kata di level 5 dan baris di level 4 (tanpa
+    teks), jadi kata harus digabung ulang memakai kunci
+    (blok, paragraf, baris). Keyakinan per kata dirata-rata menjadi
+    keyakinan baris; nilai rendah dipakai UI untuk menandai field yang
+    perlu diperiksa manusia.
+    """
+    done = _tesseract_run([str(image_path), "stdout", "--psm", str(psm), "--dpi", "300", "tsv"], lang)
+    grouped: dict[tuple[str, str, str], list[dict]] = {}
+    order: list[tuple[str, str, str]] = []
+
+    if done.returncode == 0 and done.stdout.strip():
+        reader = csv.DictReader(io.StringIO(done.stdout), delimiter="\t", quoting=csv.QUOTE_NONE)
+        for row in reader:
+            if (row.get("level") or "").strip() != "5":
+                continue
+            text = receipt.clean_text(row.get("text") or "")
+            if not text:
+                continue
+            key = (row.get("block_num") or "", row.get("par_num") or "", row.get("line_num") or "")
+            if key not in grouped:
+                grouped[key] = []
+                order.append(key)
+            grouped[key].append(row)
+
+    lines: list[str] = []
+    confidence: dict[int, float] = {}
+    for key in order:
+        words = sorted(grouped[key], key=lambda r: int(r.get("left") or 0))
+        pieces: list[str] = []
+        scores: list[float] = []
+        previous_right: int | None = None
+        previous_height = 20
+        for word in words:
+            try:
+                left = int(word.get("left") or 0)
+                height = int(word.get("height") or previous_height)
+                score = float(word.get("conf") or -1)
+            except ValueError:
+                left, height, score = previous_right or 0, previous_height, -1.0
+            text = receipt.clean_text(word.get("text") or "")
+            if not text:
+                continue
+            if previous_right is not None and left - previous_right > max(18, int(previous_height * 1.1)):
+                pieces.append("   ")  # pertahankan jarak kolom struk
+            pieces.append(text)
+            if score >= 0:
+                scores.append(score)
+            previous_right = left + int(word.get("width") or 0)
+            previous_height = height
+        line = receipt.clean_text(" ".join(pieces).replace("    ", "   "))
+        if not line:
+            continue
+        lines.append(line)
+        if scores:
+            confidence[len(lines) - 1] = round(sum(scores) / len(scores), 1)
+
+    if not lines:
+        plain = _tesseract_run([str(image_path), "stdout", "--psm", str(psm)], lang)
+        lines = [text for text in (receipt.clean_text(l) for l in plain.stdout.splitlines()) if text]
+
+    return "\n".join(lines), confidence
+
+
+def ocr_receipt(raw: bytes, extension: str, psm: int = 6) -> dict:
+    """OCR satu gambar struk -> teks mentah + draf terstruktur."""
+    lang, missing = resolve_ocr_lang()
+    if not lang:
+        raise OCRUnavailable(f"Mesin OCR belum siap. Jalankan: {OCR_INSTALL_HINT}")
+    started = time.time()
+    with tempfile.TemporaryDirectory(prefix="dompetku-ocr-") as workdir:
+        target = Path(workdir) / f"struk{extension}"
+        target.write_bytes(raw)
+        text, confidence = ocr_lines(target, lang, psm)
+    if not text.strip():
+        raise ValueError("Teks tidak terbaca. Coba foto yang lebih terang, rapi, dan dekat.")
+    parsed = receipt.parse_receipt(text, confidence)
+    return {
+        "text": text,
+        "confidence": parsed["confidence"],
+        "low_confidence": parsed["low_confidence"],
+        "parsed": parsed,
+        "engine": {
+            "lang": lang,
+            "psm": psm,
+            "elapsed_ms": int((time.time() - started) * 1000),
+            "missing_langs": missing,
+        },
+    }
+
+
 STATIC_TYPES = {
     ".html": "text/html; charset=utf-8",
     ".js": "text/javascript; charset=utf-8",
@@ -411,13 +648,18 @@ class Handler(BaseHTTPRequestHandler):
         platform = "Ponsel" if ("Mobile" in agent or "Android" in agent or "iPhone" in agent) else "Komputer"
         return f"{browser} · {platform}"
 
-    def read_json(self) -> dict | None:
+    def read_json(self, max_bytes: int = JSON_MAX_BYTES) -> dict | None:
         try:
             length = int(self.headers.get("Content-Length") or 0)
         except ValueError:
             length = 0
-        if length <= 0 or length > 4_000_000:
+        if length <= 0:
             return {}
+        if length > max_bytes:
+            # Body tetap harus dibaca habis, kalau tidak klien yang masih
+            # mengirim akan mendapat broken pipe alih-alih pesan 413.
+            self.drain(length)
+            raise ValueError(f"Data terlalu besar. Maksimal {max_bytes // (1024 * 1024)} MB.")
         raw = self.rfile.read(length)
         if not raw:
             return {}
@@ -426,6 +668,15 @@ class Handler(BaseHTTPRequestHandler):
         except (json.JSONDecodeError, UnicodeDecodeError):
             raise ValueError("Body harus JSON valid.")
         return data if isinstance(data, dict) else {}
+
+    def drain(self, length: int, chunk: int = 65536) -> None:
+        """Baca dan buang sisa body agar koneksi tidak broken pipe."""
+        remaining = length
+        while remaining > 0:
+            data = self.rfile.read(min(chunk, remaining))
+            if not data:
+                break
+            remaining -= len(data)
 
     def origin_ok(self) -> bool:
         origin = self.headers.get("Origin")
@@ -572,7 +823,7 @@ class Handler(BaseHTTPRequestHandler):
     def handle_api(self, method: str, action: str = "") -> None:
         query = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
         try:
-            handler = getattr(self, f"api_{action}", None)
+            handler = getattr(self, f"api_{action.replace('-', '_')}", None)
             if handler is None:
                 return self.send_json(404, {"error": "Endpoint tidak dikenal."})
             handler(method, query)
@@ -585,7 +836,11 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(500, {"error": f"Kesalahan server: {exc}"})
 
     def api_health(self, method: str, query: dict) -> None:
-        self.send_json(200, {"status": "ok", "sessions": {"used": len(active_sessions()), "max": MAX_SESSIONS}})
+        self.send_json(200, {
+            "status": "ok",
+            "sessions": {"used": len(active_sessions()), "max": MAX_SESSIONS},
+            "ocr": ocr_status(),
+        })
 
     def api_slots(self, method: str, query: dict) -> None:
         used = len(active_sessions())
@@ -822,6 +1077,52 @@ class Handler(BaseHTTPRequestHandler):
         self.send_bytes(body, "application/json; charset=utf-8",
                         headers={"Content-Disposition": f'attachment; filename="dompetku-{stamp}.json"'})
 
+    def api_ocr(self, method: str, query: dict) -> None:
+        """Terima foto struk (data URL) -> teks OCR + draf item.
+
+        Wajib sesi: endpoint ini mahal (CPU tesseract) dan tidak boleh
+        dipakai tanpa login.
+        """
+        if not self.guard():
+            return
+        if self.require_session() is None:
+            return
+        if method != "POST":
+            return self.send_json(405, {"error": "Method tidak diizinkan."})
+        data = self.read_json(max_bytes=OCR_MAX_JSON_BYTES) or {}
+        raw, extension = decode_image(data.get("image"))
+        try:
+            psm = int(data.get("psm") or 6)
+        except (TypeError, ValueError):
+            raise ValueError("Mode OCR tidak valid.")
+        if psm not in {3, 4, 6, 11, 12}:
+            psm = 6
+        try:
+            result = ocr_receipt(raw, extension, psm)
+        except OCRUnavailable as exc:
+            return self.send_json(503, {"error": str(exc), "ocr": ocr_status()})
+        self.send_json(200, {"ok": True, **result})
+
+    def api_receipt_parse(self, method: str, query: dict) -> None:
+        """Parse ulang teks OCR yang sudah dikoreksi user.
+
+        Dipakai setiap kali pengguna menyunting teks mentah di sheet
+        konfirmasi, supaya draf item ikut menyesuaikan.
+        """
+        if not self.guard():
+            return
+        if self.require_session() is None:
+            return
+        if method != "POST":
+            return self.send_json(405, {"error": "Method tidak diizinkan."})
+        data = self.read_json() or {}
+        text = data.get("text")
+        if not isinstance(text, str):
+            raise ValueError("Teks struk tidak valid.")
+        if len(text) > 20_000:
+            raise ValueError("Teks struk terlalu panjang.")
+        self.send_json(200, {"ok": True, "parsed": receipt.parse_receipt(text)})
+
     def api_reset(self, method: str, query: dict) -> None:
         if not self.guard():
             return
@@ -839,6 +1140,19 @@ class Handler(BaseHTTPRequestHandler):
 
 
 # --- cli --------------------------------------------------------------------
+
+
+def read_password(prompt: str) -> str:
+    """Baca password tanpa ditampilkan.
+
+    `--password-stdin` membaca dari pipe supaya password tidak pernah
+    muncul di daftar proses (ps) maupun riwayat shell.
+    """
+    if os.environ.get("DOMPETKU_PASSWORD_STDIN") or not sys.stdin.isatty():
+        return sys.stdin.readline().rstrip("\n")
+    import getpass
+
+    return getpass.getpass(prompt)
 
 
 def cmd_user(args) -> None:
@@ -859,13 +1173,19 @@ def cmd_user(args) -> None:
         print(f"User '{normalize_username(args.name)}' dibuat.")
         return
     if args.action == "passwd":
-        password = args.password or input(f"Password baru untuk {args.name}: ").strip()
+        password = args.password or read_password(f"Password baru untuk {args.name}: ")
+        if not password:
+            raise SystemExit("Password tidak boleh kosong.")
+        if len(password) < 8:
+            raise SystemExit("Password minimal 8 karakter.")
         username = normalize_username(args.name)
         user = db().execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
         if not user:
             raise SystemExit(f"User '{username}' tidak ada.")
         salt, digest = hash_password(password)
-        db().execute("UPDATE users SET salt=?, pass_hash=?, diubah=? WHERE username=?", (salt, digest, now(), username))
+        db().execute(
+            "UPDATE users SET salt=?, pass_hash=?, diubah=? WHERE username=?", (salt, digest, now(), username)
+        )
         db().execute("DELETE FROM sessions WHERE username=?", (username,))
         print(f"Password '{username}' diperbarui, semua sesinya dikeluarkan.")
         return
@@ -886,6 +1206,44 @@ def cmd_sessions(args) -> None:
     if args.action == "revoke":
         db().execute("DELETE FROM sessions WHERE token LIKE ?", (f"{args.token}%",))
         print(f"Sesi {args.token} dicabut.")
+
+
+def cmd_ocr(args) -> None:
+    """Cek kesiapan OCR, atau uji OCR dari terminal."""
+    status = ocr_status()
+    if not args.path:
+        print(f"tesseract : {tesseract_binary() or 'belum terpasang'}")
+        print(f"bahasa   : {status['lang'] or '-'} (terpasang: {', '.join(status['installed']) or '-'})")
+        if status["missing"]:
+            print(f"perlu    : {status['hint']}")
+        print(f"siap     : {'ya' if status['available'] else 'belum'}")
+        if not status["available"]:
+            raise SystemExit(1)
+        return
+
+    path = Path(args.path)
+    if not path.is_file():
+        raise SystemExit(f"Berkas '{path}' tidak ada.")
+    raw = path.read_bytes()
+    extension = {".jpg": ".jpg", ".jpeg": ".jpg", ".png": ".png", ".webp": ".webp"}.get(
+        path.suffix.lower(), ".png"
+    )
+    if len(raw) > OCR_MAX_BYTES:
+        raise SystemExit(f"Ukuran berkas maksimal {OCR_MAX_BYTES // (1024 * 1024)} MB.")
+    try:
+        result = ocr_receipt(raw, extension, args.psm)
+    except (OCRUnavailable, ValueError) as exc:
+        raise SystemExit(str(exc))
+    parsed = result["parsed"]
+    print(f"--- teks OCR ({result['engine']['lang']}, {result['engine']['elapsed_ms']} ms) ---")
+    print(result["text"])
+    print(f"--- draf: {parsed['merchant']['value'] or '-'} | {parsed['date']['value'] or '-'} | "
+          f"total {parsed['total']['value']} ({parsed['total'].get('source')}) ---")
+    for item in parsed["items"]:
+        flag = " (perlu dicek)" if item["low_confidence"] else ""
+        print(f"  - {item['label']}: {item['amount']}{flag}")
+    for warning in parsed["warnings"]:
+        print(f"  ! {warning['field']}: {warning['message']}")
 
 
 def serve(args) -> None:
@@ -917,11 +1275,17 @@ def main() -> None:
     user_parser = sub.add_parser("user")
     user_parser.add_argument("action", choices=["list", "add", "passwd", "rm"], nargs="?")
     user_parser.add_argument("name", nargs="?")
-    user_parser.add_argument("--password", help="-password baru (opsional)")
+    user_parser.add_argument("--password", help="-password baru (opsional, hindari: terlihat di ps)")
+    user_parser.add_argument("--password-stdin", action="store_true",
+                             help="baca password baru dari stdin agar tidak masuk riwayat/ps")
 
     session_parser = sub.add_parser("sessions")
     session_parser.add_argument("action", nargs="?", choices=["revoke"])
     session_parser.add_argument("token", nargs="?")
+
+    ocr_parser = sub.add_parser("ocr", help="cek/uji mesin OCR struk")
+    ocr_parser.add_argument("path", nargs="?", help="gambar struk (jpg/png/webp)")
+    ocr_parser.add_argument("--psm", type=int, default=6, help="mode layout tesseract (default 6)")
 
     args = parser.parse_args()
     init_db()
@@ -929,6 +1293,8 @@ def main() -> None:
         cmd_user(args)
     elif args.command == "sessions":
         cmd_sessions(args)
+    elif args.command == "ocr":
+        cmd_ocr(args)
     elif args.command == "serve":
         serve(args)
     else:
