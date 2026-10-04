@@ -391,6 +391,7 @@ OCR_MAX_JSON_BYTES = int(os.environ.get("DOMPETKU_OCR_MAX_JSON", str(12 * 1024 *
 OCR_INSTALL_HINT = "sudo apt install tesseract-ocr tesseract-ocr-ind"
 OCR_IMAGE_TYPES = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
 OCR_SIGNATURES = ((b"\xff\xd8\xff", "image/jpeg"), (b"\x89PNG\r\n\x1a\n", "image/png"))
+OCR_LANG_CACHE_SECONDS = 300
 _OCR_LANGS: tuple[float, list[str]] | None = None
 
 
@@ -406,9 +407,14 @@ def tesseract_binary() -> str | None:
 
 
 def available_ocr_langs() -> list[str]:
-    """Bahasa tesseract yang benar-benar terpasang (cache 1 jam)."""
+    """Bahasa tesseract yang benar-benar terpasang.
+
+    Hasil KOSONG tidak pernah di-cache: kalau tesseract baru saja diinstal
+    sementara server sudah jalan, daftar bahasa harus langsung terbaca
+    tanpa perlu tunggu cache habis.
+    """
     global _OCR_LANGS
-    if _OCR_LANGS and time.time() - _OCR_LANGS[0] < 3600:
+    if _OCR_LANGS and _OCR_LANGS[1] and time.time() - _OCR_LANGS[0] < OCR_LANG_CACHE_SECONDS:
         return _OCR_LANGS[1]
     binary = tesseract_binary()
     langs: list[str] = []
@@ -422,7 +428,8 @@ def available_ocr_langs() -> list[str]:
             name = line.strip()
             if name and re.fullmatch(r"[A-Za-z0-9_+.-]+", name):
                 langs.append(name)
-    _OCR_LANGS = (time.time(), langs)
+    if langs:
+        _OCR_LANGS = (time.time(), langs)
     return langs
 
 
