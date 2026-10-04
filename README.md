@@ -73,7 +73,52 @@ ssh muthi@192.168.100.25 'systemctl --user daemon-reload && systemctl --user ena
 ```
 
 Semua aset memakai path relatif, jadi aplikasi tetap jalan di sub-path reverse proxy.
-Contoh konfigurasi Nginx tersedia di `deploy/nginx.conf.example`.
+
+### Alur kerja (repo = source of truth)
+
+```bash
+# di mesin kerja
+git add -A && git commit -m "..." && git push
+
+# di server lenovo
+~/dompetku/deploy/update.sh     # git pull --ff-only + systemctl --user restart dompetku
+```
+
+Server memakai deploy key read-only (`~/.ssh/dompetku_deploy`), jadi tidak perlu PAT di server.
+Folder `data/` tidak pernah disentuh oleh `git pull`.
+
+### Domain dengan Cloudflare Tunnel (disarankan)
+
+Lenovo berada di belakang router rumah, jadi **Cloudflare Tunnel** lebih aman daripada port
+forward: tidak ada port terbuka, tidak peduli IP publik Indihome berganti, dan HTTPS otomatis.
+
+```bash
+# 1. Buat tunnel di dashboard Zero Trust -> Networks -> Tunnels -> Create
+#    pilih cloudflared, isi nama "dompetku", lalu salin token yang muncul
+
+# 2. Di lenovo, jalankan perintah yang diberikan dashboard (login dengan token):
+cloudflared tunnel login            # hanya jika tidak memakai token dari dashboard
+cloudflared service install <TOKEN> # atau daftarkan sebagai systemd user
+
+# 3. Daftarkan hostname publik di dashboard:
+#    Public Hostname -> dompetku.labku.xyz -> Service http://127.0.0.1:8090
+
+# 4. Kalau ingin dijalankan sebagai systemd user dengan file konfigurasi:
+cp deploy/cloudflared-dompetku.yml ~/.cloudflared/dompetku.yml   # isi UUID tunnel
+cp deploy/cloudflared-dompetku.service ~/.config/systemd/user/
+systemctl --user daemon-reload && systemctl --user enable --now cloudflared-dompetku
+```
+
+Akses: **https://dompetku.labku.xyz** (dan tetap **http://192.168.100.25:8090** di LAN).
+
+Catatan teknis:
+
+- Cloudflare mengirim `X-Forwarded-Proto: https`, sehingga `server.py` otomatis memasang flag
+  `Secure` pada cookie sesi. Akses HTTP LAN tetap memakai cookie tanpa `Secure`.
+- `Origin` dicek oleh server agar request dari situs lain tidak bisa memakai sesi cookie Anda.
+- Pastikan record DNS dibuat sebagai **CNAME** ke `<UUID>.cfargotunnel.com` dengan status
+  **Proxied** (awan oranye). Cloudflare membuatnya otomatis saat Public Hostname ditambahkan.
+- Kalau IP publik atau ISP bermasalah, tunnel tetap bekerja karena tidak bergantung pada IP.
 
 ## Struktur File
 

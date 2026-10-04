@@ -1,0 +1,21 @@
+# Konfigurasi Cloudflare Tunnel untuk DompetKu.
+# Salin ke ~/.cloudflared/dompetku.yml di server, lalu sesuaikan tunnel UUID
+# dan hostname dengan milik Anda.
+
+tunnel: <UUID-TUNNEL-DARI-DASHBOARD>
+credentials-file: /home/muthi/.cloudflared/<UUID-TUNNEL-DARI-DASHBOARD>.json
+
+# Tunnel acts as a switch to the local origin; no port forwarding needed.
+ingress:
+  - hostname: dompetku.labku.xyz
+    service: http://127.0.0.1:8090
+    originRequest:
+      connectTimeout: 10s
+      noHappyEyeballs: false
+  # Wajib ada catch-all di akhir, kalau tidak cloudflared refuse start.
+  - service: http_status:404
+
+# Catatan:
+# - Cloudflare mengirim X-Forwarded-Proto: https, sehingga cookie sesi
+#   otomatis memakai flag Secure (server.py membaca header tersebut).
+# - Request /api/ tidak pernah di-cache service worker, jadi aman.
