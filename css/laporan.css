@@ -309,6 +309,7 @@
 }
 
 .legend__name {
+  display: block;
   font-size: 0.8rem;
   font-weight: 600;
   white-space: nowrap;
@@ -317,6 +318,7 @@
 }
 
 .legend__bar {
+  display: block;
   height: 4px;
   border-radius: 2px;
   background: var(--surface-3);
@@ -399,6 +401,7 @@
 }
 
 .rank__name {
+  display: block;
   font-size: 0.85rem;
   font-weight: 600;
   white-space: nowrap;
@@ -407,6 +410,7 @@
 }
 
 .rank__meta {
+  display: block;
   font-size: 0.72rem;
   color: var(--text-muted);
   white-space: nowrap;
@@ -416,6 +420,7 @@
 }
 
 .rank__bar {
+  display: block;
   height: 5px;
   border-radius: 3px;
   background: var(--surface-3);
