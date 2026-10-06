@@ -67,5 +67,40 @@ class TestTruncationPengeluaran(unittest.TestCase):
         self.assertIn("height: 5px", "\n".join(aturan(css, ".rank__bar")))
 
 
+class TestJarakAntarBlokSeragam(unittest.TestCase):
+    """Jarak antar blok utama halaman harus satu nilai (--stack-gap).
+
+    Bug yang dicegah: #kpis di laporan bukan .card, jadi dulu tidak kena
+    `.card + .card` dan gap-nya 0 padahal blok lain 14px.
+    """
+
+    def test_variabel_stack_gap_didefinisikan(self):
+        root = re.search(r":root\s*\{([^}]*)\}", read("css", "base.css")).group(1)
+        self.assertRegex(root, r"--stack-gap:\s*[\d.]+\s*(px|rem)",
+                         "--stack-gap harus didefinisikan di :root")
+
+    def test_blok_utama_halaman_memakai_stack_gap(self):
+        bodies = aturan(read("css", "base.css"), ".page > * + *")
+        self.assertTrue(bodies, "aturan `.page > * + *` hilang dari base.css")
+        self.assertIn("var(--stack-gap)", bodies[0],
+                      "blok utama halaman harus berjarak --stack-gap")
+
+    def test_card_bersebelahan_memakai_stack_gap(self):
+        bodies = aturan(read("css", "base.css"), ".card + .card")
+        self.assertTrue(bodies, "aturan `.card + .card` hilang")
+        for body in bodies:
+            self.assertIn("var(--stack-gap)", body)
+            self.assertNotRegex(body, r"\d+px",
+                                "gap card jangan di-hardcode; pakai --stack-gap")
+
+    def test_blok_bukan_card_ikut_seragam(self):
+        for berkas, selector in (("catat.css", ".actions"), ("laporan.css", ".kpis")):
+            with self.subTest(berkas=berkas, selector=selector):
+                bodies = aturan(read("css", berkas), selector)
+                self.assertTrue(bodies, f"{selector} tidak ditemukan di {berkas}")
+                self.assertIn("var(--stack-gap)", "\n".join(bodies),
+                              f"{selector} di {berkas} harus ikut memakai --stack-gap")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

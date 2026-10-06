@@ -36,6 +36,8 @@
   --radius-full: 999px;
   --nav-height: 68px;
   --gutter: 18px;
+  /* Jarak seragam antar blok utama di dalam .page (beranda & laporan). */
+  --stack-gap: 14px;
   --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
   /* Diukur dari lingkungan, bukan nilai tetap: iPhone A2HS memakai
      viewport-fit=cover sehingga konten bisa menyusup ke balik status bar. */
@@ -416,8 +418,14 @@ h1, h2, h3, h4 {
   padding: 18px;
 }
 
+/* Jarak antar blok utama halaman. Dipakai lewat selektor bersaudara supaya
+   blok yang bukan .card (mis. #kpis di laporan) tetap ikut berjarak sama. */
+.page > * + * {
+  margin-top: var(--stack-gap);
+}
+
 .card + .card {
-  margin-top: 14px;
+  margin-top: var(--stack-gap);
 }
 
 html[data-theme='light'] .card {

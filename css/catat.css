@@ -178,7 +178,7 @@
   display: grid;
   grid-template-columns: 1fr;
   gap: 10px;
-  margin-top: 14px;
+  margin-top: var(--stack-gap);
 }
 
 .action {
