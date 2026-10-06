@@ -194,9 +194,11 @@ konfirmasi menampilkan:
   sebelum `location.reload()`, jadi setelah reload benar-benar dapat kode terbaru.
 - Pemeriksaan berjalan 4 detik setelah buka, tiap kali tab kembali terlihat, dan tiap 10 menit.
 - `/api/health` tidak pernah di-cache service worker, jadi versinya selalu benar.
-- **Setiap rilis wajib menaikkan tiga angka ini:** `APP_VERSION` di `server.py`,
-  `APP_VERSION` di `js/utils.js`, dan `CACHE_NAME` di `sw.js`. `tests/test_version.py`
-  gagal kalau ada yang lupa.
+- **Versi memakai skema MAJOR.MINOR (mis. `1.9`):** MAJOR hanya naik untuk perubahan
+  besar/migrasi data, MINOR naik setiap rilis. Angka ini harus sama di tiga tempat —
+  `APP_VERSION` di `server.py`, `APP_VERSION` di `js/utils.js`, dan `CACHE_NAME` di
+  `sw.js` (prefiks `dompetku-`). `tests/test_version.py` gagal kalau ada yang lupa
+  atau formatnya menyimpang dari `MAJOR.MINOR`.
 
 ### Cache & proxy di depan
 
@@ -261,6 +263,8 @@ dompetku/
 ├── tests/test_http.py    # Regresi lapisan HTTP (drain body, error JSON, method asing)
 ├── tests/test_ocr_image.py # Regresi orientasi foto & pembacaan struk dari gambar
 ├── tests/test_version.py  # Jaga versi app sinkron antara server, klien, dan SW
+├── tests/test_css_layout.py # Regresi layout: safe-area iPhone & truncation laporan
+├── tests/test_theme.py    # Regresi tema: toggle langsung, hydrate awal, anti-kedip
 ├── deploy/               # Unit systemd + contoh reverse proxy Nginx
 ├── data/                 # SQLite (dibuat otomatis, tidak ikut rsync)
 ├── vendor/chart.umd.min.js

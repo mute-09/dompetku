@@ -66,9 +66,12 @@ ALLOWED_METHODS = "GET, HEAD, POST, PATCH, PUT, DELETE, OPTIONS"
 DEFAULT_USERS = ("buya", "ummah")
 DEFAULT_PASSWORD = os.environ.get("DOMPETKU_DEFAULT_PASSWORD", "rahasiasekali")
 
-# Versi aplikasi. Harus sama dengan APP_VERSION di js/utils.js; app menampilkan
-# tombol muat ulang kalau server sudah lebih baru dari shell yang berjalan.
-APP_VERSION = os.environ.get("DOMPETKU_VERSION", "v8")
+# Versi aplikasi dengan skema MAJOR.MINOR (contoh: 1.9).
+# MAJOR hanya naik untuk perubahan besar/migrasi; MINOR naik tiap rilis shell.
+# Harus sama dengan APP_VERSION di js/utils.js dan CACHE_NAME di sw.js
+# (dicek tests/test_version.py). App menampilkan tombol muat ulang kalau server
+# sudah lebih baru dari shell yang sedang berjalan.
+APP_VERSION = os.environ.get("DOMPETKU_VERSION", "1.9")
 
 SCRYPT_N = 1 << 14
 SCRYPT_R = 8
