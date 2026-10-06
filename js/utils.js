@@ -1,6 +1,6 @@
 // Naikkan setiap rilis bersama APP_VERSION di server.py dan CACHE_NAME di sw.js
 // (skema MAJOR.MINOR; dicek tests/test_version.py).
-export const APP_VERSION = '1.10';
+export const APP_VERSION = '1.11';
 
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
 const MONTHS_LONG = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
