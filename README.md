@@ -265,30 +265,35 @@ dompetku/
 ├── tests/test_version.py  # Jaga versi app sinkron antara server, klien, dan SW
 ├── tests/test_css_layout.py # Regresi layout: safe-area iPhone & truncation laporan
 ├── tests/test_theme.py    # Regresi tema: toggle langsung, hydrate awal, anti-kedip
+├── tests/test_icons.py    # Ikon/favicon wajib sama dengan mark appbar + dimensi PNG
 ├── deploy/               # Unit systemd + contoh reverse proxy Nginx
 ├── data/                 # SQLite (dibuat otomatis, tidak ikut rsync)
 ├── vendor/chart.umd.min.js
 ├── sw.js
 ├── manifest.json
 └── icons/
-    ├── build-icons.sh    # Bangun ulang semua ikon PWA/favicon dari logo appbar
-    ├── icon.svg          # Favicon + ikon "any" (sudut bulat)
+    ├── build-icons.sh    # Bangun ulang ikon PWA/favicon dari mark appbar
+    ├── icon.svg          # Favicon + ikon "any" (kotak mark appbar)
     ├── icon-maskable.svg # Varian maskable (latar penuh, logo lebih kecil)
     └── *.png             # 32/180/192/512 + varian maskable
 ```
 
 ### Ikon PWA
 
-Semua ikon memakai geometri logo appbar dengan gaya stroke yang sama seperti ikon di
-dalam aplikasi (`stroke-width` 2,2, ujung bulat, tanpa isian). Setelah logo di
-`index.html` berubah, bangun ulang semua ukuran:
+Ikon aplikasi dan favicon adalah salinan mark appbar (`.appbar__mark` di `css/base.css`):
+kotak gradasi `linear-gradient(145deg, var(--primary), var(--income))` — dibekukan ke warna
+tema gelap, `#7c8cff → #2fd6a5` — berisi glyph dompet putih (`stroke-width` 2,1, ujung bulat).
+Radius kotak 11/34 dari sisi dan glyph 19/34 dari sisi, sama seperti di appbar. Setelah mark
+berubah, bangun ulang semua ukuran:
 
 ```bash
 bash icons/build-icons.sh   # butuh rsvg-convert
 ```
 
-Varian `maskable` memakai latar penuh tanpa pembulatan dan logo berada di zona aman 80%
-supaya tidak terpotong saat Android memotong ikon.
+Varian `maskable` memakai latar gradasi penuh tanpa pembulatan dan glyph diperkecil 0,88×
+supaya tetap di zona aman 80% saat Android memotong ikon. `tests/test_icons.py` mengunci
+kesamaan warna/stroke/radius dengan mark appbar, keberadaan semua berkas ikon, dan nomor
+versi pada `?v=` di `<link rel="icon">` (favicon paling lengket di cache browser).
 
 ## Data & Cadangan
 
