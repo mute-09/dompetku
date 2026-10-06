@@ -46,6 +46,7 @@ export function setupThemeToggle(button, mode) {
   button.addEventListener('click', () => {
     const next = resolveTheme(mode()) === 'dark' ? 'light' : 'dark';
     store.setSettings({ theme: next });
+    applyTheme(next);
     render();
   });
   return render;

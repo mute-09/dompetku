@@ -4,6 +4,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0b0d14">
+  <script>
+    // Terapkan tema sebelum paint pertama (anti-kedip) — sejajar resolveTheme() di ui.js.
+    try {
+      var t = (JSON.parse(localStorage.getItem('dompetku.v2') || '{}').settings || {}).theme;
+      var sistem = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      document.documentElement.dataset.theme = (t === 'light' || t === 'dark') ? t : sistem;
+      document.querySelector('meta[name="theme-color"]').content =
+        document.documentElement.dataset.theme === 'light' ? '#f6f7fb' : '#0b0d14';
+    } catch (e) {}
+  </script>
   <meta name="description" content="Laporan keuangan rumah tangga: tren, komposisi kategori, insight, dan rincian lengkap.">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">

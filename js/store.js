@@ -168,6 +168,18 @@ function loadCache() {
   };
 }
 
+// Settings dibaca begitu modul dimuat, bukan menunggu init(). Halaman memanggil
+// initTheme() di module scope sebelum init() selesai (dan bisa dilewati kalau
+// init() gagal), jadi tema harus sudah benar sejak baris pertama.
+const cachedSettings = loadCache()?.settings;
+if (cachedSettings) {
+  state.settings = {
+    ...DEFAULT_SETTINGS,
+    ...cachedSettings,
+    threshold: Number(cachedSettings.threshold) || DEFAULT_SETTINGS.threshold
+  };
+}
+
 /* --- antrean offline --- */
 
 function loadOutbox() {

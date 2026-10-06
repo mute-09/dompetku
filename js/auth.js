@@ -1,4 +1,5 @@
 import { SessionExpired, api, resetExpiryGuard } from './api.js';
+import { initTheme } from './ui.js';
 
 const dom = {
   form: document.getElementById('loginForm'),
@@ -12,6 +13,9 @@ const dom = {
 
 const HOME = new URL('index.html', document.baseURI).href;
 let busy = false;
+
+// Halaman login ikut tema yang tersimpan, sama seperti halaman utama.
+initTheme();
 
 function showError(message) {
   dom.error.textContent = message;
