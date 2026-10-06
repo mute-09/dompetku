@@ -2,7 +2,7 @@
   min-height: 100dvh;
   display: grid;
   place-items: center;
-  padding: 1.25rem 1rem;
+  padding: calc(var(--safe-top, 0px) + 1.25rem) 1rem 1.25rem;
   background:
     radial-gradient(120% 90% at 50% -10%, rgba(34, 211, 238, 0.16), transparent 60%),
     radial-gradient(90% 70% at 100% 110%, rgba(167, 139, 250, 0.14), transparent 55%),

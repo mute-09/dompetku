@@ -37,6 +37,9 @@
   --nav-height: 68px;
   --gutter: 18px;
   --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  /* Diukur dari lingkungan, bukan nilai tetap: iPhone A2HS memakai
+     viewport-fit=cover sehingga konten bisa menyusup ke balik status bar. */
+  --safe-top: env(safe-area-inset-top);
 }
 
 html[data-theme='light'] {
@@ -173,7 +176,8 @@ h1, h2, h3, h4 {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 14px 0 12px;
+  /* Konten diturunkan melewati status bar; latar tetap menutup area atas. */
+  padding: calc(var(--safe-top) + 14px) 0 12px;
   background: var(--bg);
   background: color-mix(in srgb, var(--bg) 82%, transparent);
   backdrop-filter: saturate(160%) blur(14px);
