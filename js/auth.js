@@ -44,6 +44,8 @@ async function redirectHome() {
   location.replace(target);
 }
 
+let sedangOffline = false;
+
 async function guard() {
   try {
     await api.session();
@@ -52,7 +54,22 @@ async function guard() {
     return true;
   } catch (err) {
     if (err instanceof SessionExpired) resetExpiryGuard();
+    sedangOffline = Boolean(err?.isOffline);
+    if (sedangOffline && cachedUsername()) {
+      /* Sesi tidak bisa diverifikasi tanpa jaringan. Karena app dalam mode baca
+         saja, langsung arahkan ke beranda: data tersimpan tetap terbaca. */
+      redirectHome();
+      return true;
+    }
     return false;
+  }
+}
+
+function cachedUsername() {
+  try {
+    return JSON.parse(localStorage.getItem('dompetku.user') || 'null')?.username || '';
+  } catch {
+    return '';
   }
 }
 
@@ -125,10 +142,14 @@ function showAlasanKeluar() {
 }
 
 guard().then((passed) => {
-  if (!passed) {
-    refreshSlots().then(showAlasanKeluar);
-    dom.username.focus();
+  if (passed) return;
+  if (sedangOffline) {
+    dom.slots.textContent = 'Offline. Masuk butuh koneksi. Sambungkan internet lalu coba lagi.';
+    dom.slots.hidden = false;
+    return;
   }
+  refreshSlots().then(showAlasanKeluar);
+  dom.username.focus();
 });
 
 dom.username.value = new URLSearchParams(location.search).get('u') || '';

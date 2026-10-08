@@ -58,8 +58,9 @@ Beranda sengaja dibuat **ringkas**: saldo dan dua tombol. Semua input lain ada d
 - HTML5 / CSS3 / JavaScript (ES Modules, Vanilla JS — tanpa build step)
 - Backend `server.py`: Python stdlib (`http.server` + `sqlite3`), tanpa pip install
 - Chart.js 4 (di-*vendor* lokal di `vendor/`, jadi tetap berfungsi offline)
-- SQLite (WAL) sebagai sumber data bersama; `localStorage` hanya cache + antrean offline
-- Service Worker untuk mode offline; request `/api/` tidak pernah di-cache
+- SQLite (WAL) sebagai sumber data bersama; `localStorage` hanya cache baca offline
+- Service Worker untuk mode offline; request `/api/` tidak pernah di-cache, dan aplikasi
+  berjalan baca-saja ketika jaringan tidak tersedia (lihat "Mode baca-saja offline")
 - Design system berbasis CSS custom properties dengan tema gelap & terang
 
 ## Menjalankan
@@ -200,6 +201,39 @@ konfirmasi menampilkan:
   `sw.js` (prefiks `dompetku-`). `tests/test_version.py` gagal kalau ada yang lupa
   atau formatnya menyimpang dari `MAJOR.MINOR`.
 
+### Mode baca-saja offline
+
+Saldo, transaksi, dan laporan sudah tersimpan di `localStorage`, jadi
+aplikasi tetap bisa dibuka dan dibaca tanpa internet.
+
+- Boot tidak bergantung pada server. `init()` di `js/store.js` mengadopsi
+  cache lokal lebih dahulu, memasang listener sinkron, lalu mencoba
+  `api.session()`. Gagal karena offline hanya mengubah status: tidak
+  melempar error dan tidak macet di "Memuat…".
+- Saat offline aplikasi menjadi **baca-saja**. `addTransaction`,
+  `updateTransaction`, `removeTransaction`, `restoreTransaction`,
+  `replaceAll`, dan `clearAll` menolak aksi dengan pesan `PESAN_OFFLINE`.
+  Ini disengaja: perubahan yang hanya masuk antrean bisa terlihat
+  "berhasil" padahal belum sampai ke server. Tema dan ambang pengeluaran
+  tetap boleh diganti karena efeknya lokal saja.
+- Kebaruan data ditunjukkan di badge (`Offline · 2 jam lalu`) dan banner di
+  bawah appbar ("menampilkan data tersimpan · terakhir sinkron …").
+- Begitu koneksi kembali, listener `online` menarik data segar, badge
+  kembali `Tersinkron`, dan banner hilang.
+- Nama pengguna disimpan di `localStorage` (`dompetku.user`) supaya avatar
+  dan tombol akun tetap benar saat offline.
+- Request `/api/` tetap tidak pernah di-cache service worker. Data keuangan
+  tidak diduplikasi ke Cache Storage; `localStorage` sudah cukup untuk baca.
+- `sw.js` hanya menulis shell ke cache dari respons `2xx`, jadi satu kali
+  tunnel mati tidak membuat aplikasi tidak bisa dibuka offline sampai rilis
+  berikutnya.
+- Konsekuensi yang diterima: masuk (login) tetap butuh internet. Selama
+  cookie sesi masih ada, halaman login langsung mengarahkan ke beranda
+  ketika offline; kalau tidak, muncul catatan bahwa koneksi diperlukan.
+- Diuji dengan Chrome DevTools Protocol: aplikasi dibuka dengan
+  `Network.emulateNetworkConditions offline`, lalu diperiksa data tetap
+  sama dengan saat online, badge/banner muncul, dan penulisan terkunci.
+
 ### Cache & proxy di depan
 
 - Shell (`.html`, `.js`, `.css`, `.json`) dikirim `Cache-Control: no-cache` — proxy di depan
@@ -298,9 +332,11 @@ versi pada `?v=` di `<link rel="icon">` (favicon paling lengket di cache browser
 ## Data & Cadangan
 
 Data utama tersimpan di server (`data/dompetku.db`, SQLite WAL) sehingga buya dan ummah melihat
-dompet yang sama. Tampilan lokal memakai `localStorage` (kunci `dompetku.v2`) sebagai cache, dan
-transaksi yang dicatat saat offline ditunda di antrean (`dompetku.outbox`) lalu dikirim otomatis
-saat koneksi kembali. Data versi lama (`dompetku_data`) dipindahkan otomatis saat pertama masuk.
+dompet yang sama. Tampilan lokal memakai `localStorage` (kunci `dompetku.v2`) sebagai cache baca,
+sehingga aplikasi tetap bisa dibuka tanpa internet. Saat offline penulisan data dikunci; transaksi
+yang dibuat sebelum koneksi hilang (atau dari sesi sebelumnya) tetap antre di `dompetku.outbox`
+lalu dikirim otomatis saat koneksi kembali. Data versi lama (`dompetku_data`) dipindahkan otomatis
+saat pertama masuk.
 
 Cadangan rutin: **Laporan → Ekspor JSON**. Pemulihan tersedia di **Pengaturan → Pulihkan backup**.
 

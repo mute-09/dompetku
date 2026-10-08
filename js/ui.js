@@ -323,7 +323,14 @@ export function openSettings() {
           danger: true
         });
         if (!ok) return;
-        await store.clearAll();
+        const terhapus = await store.clearAll();
+        if (!terhapus) {
+          toast({
+            message: store.isReadOnly() ? store.PESAN_OFFLINE : 'Gagal menghapus data.',
+            tone: 'warn'
+          });
+          return;
+        }
         handle.close();
         toast({ message: 'Semua data dihapus.', tone: 'warn' });
       }
@@ -346,17 +353,59 @@ const STATUS_TEXT = {
   keluar: 'Sesi berakhir'
 };
 
+/** "baru saja" / "12 menit lalu" / "3 jam lalu" — untuk data yang belum segar. */
+function sejakLabel(iso) {
+  if (!iso) return null;
+  const selisih = Date.now() - new Date(iso).getTime();
+  if (!Number.isFinite(selisih) || selisih < 0) return null;
+  const menit = Math.round(selisih / 60000);
+  if (menit < 1) return 'baru saja';
+  if (menit < 60) return `${menit} menit lalu`;
+  const jam = Math.round(menit / 60);
+  if (jam < 24) return `${jam} jam lalu`;
+  return `${Math.round(jam / 24)} hari lalu`;
+}
+
+/** Banner di bawah appbar saat data yang tampil bukan data terbaru. */
+function bannerOffline() {
+  let banner = document.getElementById('offlineBanner');
+  if (!banner) {
+    banner = el('div', {
+      class: 'offline-banner',
+      id: 'offlineBanner',
+      role: 'status',
+      'aria-live': 'polite',
+      hidden: true
+    });
+    const appbar = document.querySelector('.appbar');
+    if (appbar?.parentElement) appbar.parentElement.insertBefore(banner, appbar.nextSibling);
+    else document.body.prepend(banner);
+  }
+  return banner;
+}
+
 export function setupSyncBadge(badge, accountBtn) {
   if (badge) {
+    const banner = bannerOffline();
     store.onStatus((status) => {
       const tone = status.status === 'offline' || status.status === 'gagal'
         ? 'warn'
         : status.status === 'sinkron' ? 'good' : 'idle';
       badge.dataset.tone = tone;
-      badge.textContent = status.pending
-        ? `${STATUS_TEXT[status.status] || ''} · ${status.pending}`
-        : STATUS_TEXT[status.status] || '';
+      const basi = status.status === 'offline' ? sejakLabel(status.lastSync) : null;
+      const parts = [STATUS_TEXT[status.status] || '', basi, status.pending || null]
+        .filter((bagian) => bagian !== null && bagian !== '');
+      badge.textContent = parts.join(' · ');
       badge.hidden = !badge.textContent;
+
+      if (status.status === 'offline') {
+        banner.textContent = basi
+          ? `Offline · menampilkan data tersimpan · terakhir sinkron ${basi}`
+          : 'Offline · menampilkan data tersimpan';
+        banner.hidden = false;
+      } else {
+        banner.hidden = true;
+      }
     });
   }
   if (accountBtn) {

@@ -72,6 +72,10 @@ function renderAll() {
  * @param {'expense'|'income'} type
  */
 function openCatatSheet(type) {
+  if (store.isReadOnly()) {
+    toast({ message: store.PESAN_OFFLINE, tone: 'warn' });
+    return;
+  }
   const isExpense = type === 'expense';
   let handle;
   let teardownScanner = null;

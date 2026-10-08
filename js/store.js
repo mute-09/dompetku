@@ -3,8 +3,12 @@ import { uid, toDateStr, todayStr } from './utils.js';
 
 const CACHE_KEY = 'dompetku.v2';
 const OUTBOX_KEY = 'dompetku.outbox';
+const META_KEY = 'dompetku.sync';
+const USER_KEY = 'dompetku.user';
 const LEGACY_KEY = 'dompetku_data';
 const POLL_MS = 20000;
+
+export const PESAN_OFFLINE = 'Offline: sedang baca data tersimpan. Hubungkan internet untuk mengubah data.';
 
 export const CATEGORIES = [
   { id: 'Makanan', label: 'Makanan', icon: '🍜', color: '#f97362' },
@@ -58,7 +62,7 @@ const meta = {
   user: null,
   status: 'memuat',
   pending: 0,
-  lastSync: null,
+  lastSync: readJSON(META_KEY, null)?.lastSync || null,
   error: ''
 };
 
@@ -91,12 +95,32 @@ export function isReady() {
   return ready;
 }
 
+/**
+ * True saat perangkat tidak bisa bicara dengan server. Ini yang mengunci
+ * penulisan data: tanpa jaringan, perubahan hanya akan menumpuk di antrean
+ * dan tampil sebagai "sukses" padahal belum sampai ke server.
+ */
+export function isReadOnly() {
+  return navigator.onLine === false || meta.status === 'offline';
+}
+
+function simpanUser(user) {
+  meta.user = user || null;
+  if (user?.username) writeJSON(USER_KEY, { username: user.username });
+}
+
+function bacaUser() {
+  const tersimpan = readJSON(USER_KEY, null);
+  return tersimpan?.username ? { username: tersimpan.username } : null;
+}
+
 function notify() {
   listeners.forEach((fn) => fn(state));
 }
 
 function setStatus(patch) {
   Object.assign(meta, patch);
+  if (patch.lastSync) writeJSON(META_KEY, { lastSync: patch.lastSync });
   statusListeners.forEach((fn) => fn(statusSnapshot()));
 }
 
@@ -301,42 +325,74 @@ export async function pull({ quiet = false, force = false } = {}) {
 
 /* --- siklus hidup --- */
 
+function pasangSiklusHidup() {
+  window.addEventListener('online', () => {
+    setStatus({ status: 'menyinkron' });
+    flush().catch(() => {});
+  });
+  window.addEventListener('offline', () => setStatus({ status: 'offline' }));
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') flush().catch(() => {});
+  });
+  window.setInterval(() => {
+    if (document.visibilityState === 'visible') flush().catch(() => {});
+  }, POLL_MS);
+}
+
+/**
+ * app harus tetap hidup tanpa internet: data tersimpan di localStorage sudah
+ * diadopsi di atas, jadi kegagalan `api.session()` hanya boleh mengubah
+ * status, bukan menghentikan boot. Listener sinkron juga dipasang sebelum
+ * percobaan jaringan supaya kembali online selalu terdeteksi.
+ */
 export async function init() {
   loadOutbox();
   const cached = loadCache();
   if (cached) adopt({ rev: 0, ...cached });
+  simpanUser(bacaUser());
 
-  const session = await api.session();
-  resetExpiryGuard();
-  meta.user = session.user;
   onSessionExpired(() => {
     ready = false;
     setStatus({ status: 'keluar' });
     const next = new URL('login.html', document.baseURI).href;
     if (!location.pathname.endsWith('login.html')) location.replace(next);
   });
-
+  pasangSiklusHidup();
   ready = true;
+
+  if (navigator.onLine === false) {
+    setStatus({ status: 'offline' });
+    return { user: meta.user, sessions: [], slots: null, offline: true };
+  }
+
+  let session;
+  try {
+    session = await api.session();
+  } catch (err) {
+    resetExpiryGuard();
+    if (err instanceof SessionExpired) {
+      setStatus({ status: 'keluar' });
+      const next = new URL('login.html', document.baseURI).href;
+      if (!location.pathname.endsWith('login.html')) location.replace(next);
+      return { user: meta.user, sessions: [], slots: null, expired: true };
+    }
+    if (err instanceof ApiError && err.isOffline) {
+      setStatus({ status: 'offline' });
+      return { user: meta.user, sessions: [], slots: null, offline: true };
+    }
+    throw err;
+  }
+  resetExpiryGuard();
+  simpanUser(session.user);
+
   try {
     await pull({ force: true, quiet: true });
     await flush();
   } catch (err) {
     if (!(err instanceof SessionExpired)) throw err;
-    return { user: meta.user, sessions: [], slots: null };
+    return { user: meta.user, sessions: [], slots: null, expired: true };
   }
   setStatus({ status: outbox.length ? 'menunggu' : 'sinkron', lastSync: new Date().toISOString() });
-
-  window.addEventListener('online', () => {
-    setStatus({ status: 'menyinkron' });
-    flush();
-  });
-  window.addEventListener('offline', () => setStatus({ status: 'offline' }));
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') flush();
-  });
-  window.setInterval(() => {
-    if (document.visibilityState === 'visible') flush();
-  }, POLL_MS);
 
   return { user: meta.user, sessions: session.sessions || [], slots: session.slots };
 }
@@ -348,6 +404,7 @@ export function currentUser() {
 /* --- transaksi --- */
 
 export async function addTransaction(data) {
+  if (isReadOnly()) return null;
   const type = data.type === 'income' ? 'income' : 'expense';
   const tx = normalizeTx({ ...data, dibuat: new Date().toISOString() }, type);
   if (!tx) return null;
@@ -360,6 +417,7 @@ export async function addTransaction(data) {
 }
 
 export async function updateTransaction(id, patch) {
+  if (isReadOnly()) return null;
   const type = state.expenses.some((t) => t.id === id)
     ? 'expense'
     : state.incomes.some((t) => t.id === id)
@@ -381,6 +439,7 @@ export async function updateTransaction(id, patch) {
 }
 
 export async function removeTransaction(id) {
+  if (isReadOnly()) return null;
   const list = state.expenses.some((t) => t.id === id) ? state.expenses : state.incomes;
   const index = list.findIndex((t) => t.id === id);
   if (index === -1) return null;
@@ -393,11 +452,12 @@ export async function removeTransaction(id) {
 }
 
 export function restoreTransaction(tx) {
-  if (!tx) return;
+  if (isReadOnly() || !tx) return false;
   (tx.type === 'expense' ? state.expenses : state.incomes).unshift(tx);
   writeJSON(CACHE_KEY, state);
   notify();
   enqueue('create', tx);
+  return true;
 }
 
 export async function setSettings(patch) {
@@ -410,6 +470,7 @@ export async function setSettings(patch) {
 }
 
 export async function replaceAll(payload) {
+  if (isReadOnly()) return { ok: false, error: PESAN_OFFLINE };
   const next = payload?.state || payload || {};
   try {
     const result = await api.importState(next);
@@ -429,6 +490,7 @@ export async function replaceAll(payload) {
 }
 
 export async function clearAll() {
+  if (isReadOnly()) return false;
   outbox = [];
   writeJSON(OUTBOX_KEY, outbox);
   setStatus({ pending: 0 });

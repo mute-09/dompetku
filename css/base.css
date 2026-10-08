@@ -408,6 +408,26 @@ h1, h2, h3, h4 {
   white-space: nowrap;
 }
 
+/* === Banner offline === */
+/* Duduk di aliran normal tepat di bawah appbar: tidak menutupi navigasi
+   bawah dan tidak bertabrakan dengan toast. */
+.offline-banner {
+  display: block;
+  margin: 10px 0 0;
+  padding: 8px 14px;
+  border: 1px solid color-mix(in srgb, var(--warn) 42%, var(--border));
+  border-radius: var(--radius-sm);
+  background: var(--warn-soft);
+  color: var(--text);
+  font-size: 12.5px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.offline-banner[hidden] {
+  display: none;
+}
+
 /* === Cards === */
 
 .card {

@@ -122,6 +122,10 @@ export function renderTxList(mount, { filter = 'all', query = '', visible = 7, l
 /* === Ubah & hapus === */
 
 export function removeTx(tx, after) {
+  if (store.isReadOnly()) {
+    toast({ message: store.PESAN_OFFLINE, tone: 'warn' });
+    return;
+  }
   store.removeTransaction(tx.id);
   after?.();
   toast({
@@ -131,13 +135,20 @@ export function removeTx(tx, after) {
     actionLabel: 'Urungkan',
     duration: 6000,
     onAction() {
-      store.restoreTransaction({ ...tx, type: tx.type });
+      if (!store.restoreTransaction({ ...tx, type: tx.type })) {
+        toast({ message: store.PESAN_OFFLINE, tone: 'warn' });
+        return;
+      }
       toast({ message: 'Transaksi dikembalikan.' });
     }
   });
 }
 
 export function openEditSheet(tx) {
+  if (store.isReadOnly()) {
+    toast({ message: store.PESAN_OFFLINE, tone: 'warn' });
+    return;
+  }
   const meta = tx.type === 'expense' ? store.categoryMeta(tx.kategori) : store.sourceMeta(tx.sumber);
   let handle;
 

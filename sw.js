@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dompetku-1.14';
+const CACHE_NAME = 'dompetku-1.15';
 const APP_SHELL = [
   './',
   './index.html',
@@ -73,10 +73,10 @@ function isApi(url) {
 }
 
 function isShell(url) {
-  return APP_SHELL.some((path) => {
-    const clean = path.replace(/^\.\//, '');
-    return clean === url.pathname.slice(url.pathname.lastIndexOf('/') + 1);
-  });
+  /* Cocokkan pathname penuh (tanpa query) supaya `icons/icon.svg?v=1.14`
+     tetap mengenai cache `icons/icon.svg`. */
+  const pathname = url.pathname.replace(/^\/+/, '');
+  return APP_SHELL.some((path) => path.replace(/^\.\//, '') === pathname);
 }
 
 self.addEventListener('fetch', (event) => {
@@ -91,8 +91,13 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request, { cache: 'no-cache' })
         .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          /* Hanya 200 yang layak menggantikan shell tersimpan: halaman error
+             5xx atau 1033 Cloudflare saat tunnel mati akan meracuni cache dan
+             app tidak bisa dibuka offline lagi sampai versi berikutnya. */
+          if (response && response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          }
           return response;
         })
         .catch(async () => {
