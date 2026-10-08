@@ -63,5 +63,27 @@ class TestVersiApp(unittest.TestCase):
         self.assertRegex(server.APP_VERSION, SKEMA)
 
 
+class TestShellBebasCacheHTTPBrowser(unittest.TestCase):
+    """Cloudflare memaksa max-age pada berkas .js/.css dan menimpa `no-cache`
+    dari server. Service worker tidak boleh ikut memakai cache HTTP browser
+    saat mengisi shell, kalau tidak versi lama tersimpan dan notifikasi
+    "Muat ulang" muncul berulang walau sudah ditekan."""
+
+    def test_install_tidak_pakai_cache_add(self):
+        sw = read("sw.js")
+        self.assertNotIn("cache.add(", sw,
+                         "pakai fetch(url, {cache:'reload'}) + cache.put agar tidak "
+                         "menyimpan berkas lama dari cache browser")
+        self.assertNotIn(".addAll(", sw)
+
+    def test_install_ambil_segar_dari_jaringan(self):
+        self.assertIn("cache: 'reload'", read("sw.js"),
+                      "install harus fetch dengan cache:'reload' (lewati cache HTTP browser)")
+
+    def test_fetch_runtime_revalidasi(self):
+        self.assertIn("cache: 'no-cache'", read("sw.js"),
+                      "fetch shell saat runtime harus revalidasi, bukan ambil dari cache basi")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
