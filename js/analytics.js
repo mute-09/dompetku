@@ -424,7 +424,7 @@ export function buildInsights(list, range, settings, prevRangeData) {
       tone: 'neutral',
       icon: top.meta.icon === '📦' ? 'coins' : 'wallet',
       title: `Transaksi terbesar: ${top.meta.label}`,
-      detail: `${formatRupiahPlain(top.nominal)}${top.keterangan ? ` — ${top.keterangan}` : ''} pada ${formatDate(top.date)}.`
+      detail: `${formatRupiahPlain(top.nominal)}${top.keterangan ? ` — ${top.keterangan}` : ''} pada ${formatDate(top.tanggal)}.`
     });
   }
 
