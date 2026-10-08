@@ -16,6 +16,7 @@ export const CATEGORIES = [
   { id: 'Pendidikan', label: 'Pendidikan', icon: '📚', color: '#4ade80' },
   { id: 'Hiburan', label: 'Hiburan', icon: '🎮', color: '#a78bfa' },
   { id: 'Pakaian', label: 'Pakaian', icon: '👕', color: '#f472b6' },
+  { id: 'Kebutuhan Anak', label: 'Kebutuhan Anak', icon: '🧸', color: '#fb7185' },
   { id: 'Lainnya', label: 'Lainnya', icon: '📦', color: '#94a3b8' }
 ];
 

@@ -32,7 +32,8 @@ const CATEGORY_HINTS = [
   { id: 'Kesehatan', words: ['apotek', 'klinik', 'clinic', 'hospital', 'rumah sakit', 'farmasi', 'bpjs'] },
   { id: 'Transportasi', words: ['pertamina', 'shell', 'pertashop', 'bensin', 'tol', 'parkir', 'gojek', 'grab', 'uber'] },
   { id: 'Tagihan', words: ['pln', 'listrik', 'pulsa', 'vodafone', 'telkomsel', 'indihome', 'wifi', 'internet', 'token'] },
-  { id: 'Pendidikan', words: ['spp', 'sekolah', 'kampus', 'buku', 'atk', 'universitas'] }
+  { id: 'Pendidikan', words: ['spp', 'sekolah', 'kampus', 'buku', 'atk', 'universitas'] },
+  { id: 'Kebutuhan Anak', words: ['pampers', 'popok', 'mainan', 'bayi', 'baby', 'kids'] }
 ];
 
 /** Tebakan kategori dari isi struk; selalu bisa diganti pengguna. */
