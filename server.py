@@ -71,7 +71,7 @@ DEFAULT_PASSWORD = os.environ.get("DOMPETKU_DEFAULT_PASSWORD", "rahasiasekali")
 # Harus sama dengan APP_VERSION di js/utils.js dan CACHE_NAME di sw.js
 # (dicek tests/test_version.py). App menampilkan tombol muat ulang kalau server
 # sudah lebih baru dari shell yang sedang berjalan.
-APP_VERSION = os.environ.get("DOMPETKU_VERSION", "1.12")
+APP_VERSION = os.environ.get("DOMPETKU_VERSION", "1.13")
 
 SCRYPT_N = 1 << 14
 SCRYPT_R = 8
