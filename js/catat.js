@@ -33,7 +33,6 @@ function renderBalance() {
   const totals = store.totals();
   const today = todayStr();
   const todayNet = summarize(state, resolveRange({ period: 'today' })).net;
-  const monthNet = summarize(state, resolveRange({ period: 'month' })).net;
   const avg = dailyAverage(state, today, 30);
 
   dom.balanceAmount.textContent = formatRupiah(totals.balance);
@@ -44,8 +43,9 @@ function renderBalance() {
 
   clearNode(dom.balanceStats);
   [
+    /* Hanya dua kartu: tiga kolom membuat label terpotong ellipsis dan
+       angkanya jadi sempit. Ringkasan bulanan sudah ada di halaman laporan. */
     { label: 'Hari ini', value: todayNet, net: true },
-    { label: 'Bulan ini', value: monthNet, net: true },
     { label: 'Rata-rata/hari', value: avg.avg }
   ].forEach((item) => {
     const signClass = item.net ? (item.value > 0 ? 'pos' : item.value < 0 ? 'neg' : '') : '';
