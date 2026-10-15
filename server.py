@@ -1152,11 +1152,19 @@ class Handler(BaseHTTPRequestHandler):
 
         sessions = active_sessions()
         current = self.session()
-        returning = current if current and any(s["token"] == current["token"] for s in sessions) else None
+        # Cookie lama hanya dipakai ulang kalau memang milik akun yang sedang
+        # login. Cookie akun lain tidak boleh menempel (mis. ganti akun di
+        # perangkat yang sama).
+        returning = current if current and current["username"] == user["username"] else None
         if returning:
             db().execute("UPDATE sessions SET terakhir=? WHERE token=?", (now(), returning["token"]))
             token = returning["token"]
         else:
+            # Cookie hilang (riwayat/cache dibersihkan) tetapi baris sesi lama
+            # masih ada. Cabut sesi lama akun yang sama dulu, baru cek kuota,
+            # supaya login ulang tidak ditolak "kuota penuh" oleh sesinya sendiri.
+            db().execute("DELETE FROM sessions WHERE username=?", (user["username"],))
+            sessions = [s for s in sessions if s["username"] != user["username"]]
             if len(sessions) >= MAX_SESSIONS:
                 return self.send_json(409, {
                     "error": f"Kuota {MAX_SESSIONS} sesi sudah penuh. Keluar dari salah satu perangkat lalu coba lagi.",

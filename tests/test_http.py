@@ -201,9 +201,48 @@ class TestSesiSatuPerAkun(ServerTestCase):
         _, headers_ummah, _ = self.login("ummah")
         self.assertEqual(len(server.active_sessions()), 2)
 
-        self.login("buya")
+        status, _, _ = self.login("buya")
+        self.assertEqual(status, 200)
         sisa = {s["username"] for s in server.active_sessions()}
         self.assertEqual(sisa, {"buya", "ummah"})
+
+    def test_login_ulang_saat_kuota_penuh_mencabut_sesi_sendiri(self):
+        """Riwayat dibersihkan -> cookie hilang. Login ulang tidak boleh kena 409."""
+        _, headers_buya, _ = self.login("buya")
+        self.login("ummah")
+        self.assertEqual(len(server.active_sessions()), 2)
+
+        lama = headers_buya["Set-Cookie"].split(";")[0]
+        status, headers, _ = self.login("buya")
+        self.assertEqual(status, 200, "sesi lama akun yang sama harus dicabut, bukan 409")
+        self.assertNotEqual(headers["Set-Cookie"].split(";")[0], lama)
+        self.assertEqual({s["username"] for s in server.active_sessions()}, {"buya", "ummah"})
+
+    def test_kuota_penuh_oleh_akun_lain_tetap_ditolak(self):
+        server.db().execute("DELETE FROM users WHERE username='tamu'")
+        server.create_user("tamu", "rahasia123")
+        self.login("buya")
+        server.create_session("tamu", "127.0.0.1", "uji")
+        self.assertEqual(len(server.active_sessions()), 2)
+
+        status, _, raw = self.login("ummah")
+        self.assertEqual(status, 409)
+        self.assertIn("Kuota", self.json_of(raw)["error"])
+
+    def test_cookie_akun_lain_tidak_dipakai_ulang(self):
+        _, headers_buya, _ = self.login("buya")
+        cookie_buya = headers_buya["Set-Cookie"].split(";")[0]
+
+        status, headers, _ = self.request("POST", "/api/login", body={
+            "username": "ummah", "password": server.DEFAULT_PASSWORD,
+        }, headers={"Cookie": cookie_buya})
+        self.assertEqual(status, 200)
+        cookie_baru = headers["Set-Cookie"].split(";")[0]
+        self.assertNotEqual(cookie_baru, cookie_buya)
+
+        status, _, raw = self.request("GET", "/api/session", headers={"Cookie": cookie_baru})
+        self.assertEqual(status, 200)
+        self.assertEqual(self.json_of(raw)["user"]["username"], "ummah")
 
     def test_kuota_dua_orang_utuh(self):
         for username in ("buya", "ummah", "buya", "ummah"):
