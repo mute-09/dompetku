@@ -1463,11 +1463,17 @@ def cmd_sessions(args) -> None:
     if not rows:
         print("Tidak ada sesi aktif.")
         return
+    print(f"Sesi aktif ({len(rows)}/{MAX_SESSIONS}):")
     for row in rows:
-        print(f"- {row['username']:<10} token={row['token'][:12]}… perangkat={row['perangkat']} sejak={datetime.fromtimestamp(row['dibuat']).isoformat(timespec='minutes')}")
+        print(f"- {row['username']} token={row['token'][:12]}")
+        perangkat = row["perangkat"] or "Perangkat tak dikenal"
+        print(f"  {perangkat} · sejak {datetime.fromtimestamp(row['dibuat']).strftime('%Y-%m-%d %H:%M')}")
     if args.action == "revoke":
-        db().execute("DELETE FROM sessions WHERE token LIKE ?", (f"{args.token}%",))
-        print(f"Sesi {args.token} dicabut.")
+        cursor = db().execute("DELETE FROM sessions WHERE token LIKE ?", (f"{args.token}%",))
+        if cursor.rowcount:
+            print(f"Sesi berawalan '{args.token}' dicabut.")
+        else:
+            print(f"Tidak ada sesi aktif dengan token berawalan '{args.token}'.")
 
 
 def cmd_ocr(args) -> None:
@@ -1543,7 +1549,7 @@ def main() -> None:
 
     session_parser = sub.add_parser("sessions")
     session_parser.add_argument("action", nargs="?", choices=["revoke"])
-    session_parser.add_argument("token", nargs="?")
+    session_parser.add_argument("token", nargs="?", help="awalan token (12 karakter dari daftar)")
 
     ocr_parser = sub.add_parser("ocr", help="cek/uji mesin OCR struk")
     ocr_parser.add_argument("path", nargs="?", help="gambar struk (jpg/png/webp)")
