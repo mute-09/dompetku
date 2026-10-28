@@ -1251,6 +1251,116 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json(200, {"unchanged": True, "rev": state["rev"]})
         self.send_json(200, state)
 
+
+
+def normalize_calendar_item(data: dict, existing: dict | sqlite3.Row | None = None) -> dict:
+    existing = dict(existing) if existing else {}
+    out = dict(existing)
+
+    item_type = str(data.get("type") or existing.get("type") or "schedule").strip().lower()
+    if item_type not in {"schedule", "birthday", "bill"}:
+        raise ValueError("Tipe tidak valid.")
+    out["type"] = item_type
+
+    title = str(data.get("title") or existing.get("title") or "").strip()
+    if not title:
+        raise ValueError("Judul wajib diisi.")
+    out["title"] = title[:120]
+
+    child = str(data.get("child") or existing.get("child") or "").strip()
+    out["child"] = child[:60] or None
+
+    date = str(data.get("date") or existing.get("date") or "").strip()
+    if date and re.match(r'^\d{4}-\d{2}-\d{2}$', date) is None:
+        raise ValueError("Format tanggal tidak valid (YYYY-MM-DD).")
+    out["date"] = date or None
+    out["start_date"] = str(data.get("start_date") or existing.get("start_date") or "").strip() or out.get("date")
+    out["end_date"] = str(data.get("end_date") or existing.get("end_date") or "").strip() or None
+
+    timev = str(data.get("time") or existing.get("time") or "").strip()
+    if timev and re.match(r'^\d{2}:\d{2}$', timev) is None:
+        raise ValueError("Format jam tidak valid (HH:MM).")
+    out["time"] = timev or None
+
+    recurring = str(data.get("recurring") or existing.get("recurring") or "none").strip().lower()
+    if recurring not in {"none", "daily", "weekly", "monthly", "yearly"}:
+        recurring = "none"
+    out["recurring"] = recurring
+
+    remind = data.get("remind_days_before", existing.get("remind_days_before"))
+    if isinstance(remind, str):
+        try:
+            remind = json.loads(remind)
+        except Exception:
+            remind = []
+    if remind is None:
+        remind = []
+    if isinstance(remind, list):
+        cleaned = []
+        for x in remind:
+            try:
+                n = int(x)
+                if n >= 0 and n <= 365:
+                    cleaned.append(n)
+            except Exception:
+                pass
+        out["remind_days_before"] = json.dumps(sorted(set(cleaned)))
+    else:
+        out["remind_days_before"] = json.dumps([])
+
+    amount = data.get("amount", existing.get("amount"))
+    if amount in (None, "",):
+        out["amount"] = None
+    else:
+        try:
+            amt = int(float(amount))
+            if amt < 0:
+                raise ValueError("Nominal tidak valid.")
+            out["amount"] = amt
+        except (TypeError, ValueError):
+            raise ValueError("Nominal tidak valid.")
+
+    category = str(data.get("category") or existing.get("category") or "").strip()
+    out["category"] = category[:40] or None
+    payee = str(data.get("payee") or existing.get("payee") or "").strip()
+    out["payee"] = payee[:60] or None
+
+    status = str(data.get("status") or existing.get("status") or "pending").strip().lower()
+    if status not in {"pending", "done", "paid"}:
+        status = "pending"
+    out["status"] = status
+
+    notes = str(data.get("notes") or existing.get("notes") or "").strip()
+    out["notes"] = notes[:500] or None
+
+    out["id"] = str(data.get("id") or existing.get("id") or f"cal_{secrets.token_hex(6)}")
+    out["created_by"] = existing.get("created_by") or data.get("created_by")
+    out["created_at"] = existing.get("created_at") or now()
+    out["updated_at"] = now()
+    return out
+
+
+def upsert_calendar_item(item: dict, username: str | None = None) -> dict:
+    conn = db()
+    conn.execute(
+        """INSERT INTO calendar_items(id, type, title, child, date, start_date, end_date, time, recurring, remind_days_before, amount, category, payee, status, notes, created_by, created_at, updated_at)
+           VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+           ON CONFLICT(id) DO UPDATE SET
+             type=excluded.type, title=excluded.title, child=excluded.child, date=excluded.date, start_date=excluded.start_date,
+             end_date=excluded.end_date, time=excluded.time, recurring=excluded.recurring, remind_days_before=excluded.remind_days_before,
+             amount=excluded.amount, category=excluded.category, payee=excluded.payee, status=excluded.status, notes=excluded.notes,
+             updated_at=excluded.updated_at""",
+        (
+            item["id"], item["type"], item["title"], item["child"], item["date"], item["start_date"], item["end_date"],
+            item["time"], item["recurring"], item["remind_days_before"], item["amount"], item["category"], item["payee"],
+            item["status"], item["notes"], item.get("created_by") or username, item["created_at"], item["updated_at"],
+        ),
+    )
+    row = conn.execute("SELECT * FROM calendar_items WHERE id=?", (item["id"],)).fetchone()
+    return dict(row) if row else item
+
+
+
     def api_transaction(self, method: str, query: dict) -> None:
         if not self.guard():
             return
@@ -1406,6 +1516,92 @@ class Handler(BaseHTTPRequestHandler):
         if len(text) > 20_000:
             raise ValueError("Teks struk terlalu panjang.")
         self.send_json(200, {"ok": True, "parsed": receipt.parse_receipt(text)})
+
+
+    def api_calendar_items(self, method: str, query: dict) -> None:
+        if not self.guard():
+            return
+        if self.require_session() is None:
+            return
+        if method == "GET":
+            sql = "SELECT * FROM calendar_items WHERE 1=1"
+            params = []
+            t = (query.get("type") or [""])[0]
+            if t and t != "all":
+                sql += " AND type=?"
+                params.append(t)
+            st = (query.get("status") or [""])[0]
+            if st:
+                sql += " AND status=?"
+                params.append(st)
+            fr = (query.get("from") or [""])[0]
+            to = (query.get("to") or [""])[0]
+            if fr:
+                sql += " AND COALESCE(date,start_date)>=?"
+                params.append(fr)
+            if to:
+                sql += " AND COALESCE(date,start_date)<=?"
+                params.append(to)
+            sql += " ORDER BY COALESCE(date,start_date) ASC, time ASC, created_at ASC"
+            limit = (query.get("limit") or ["200"])[0]
+            try:
+                lim = int(limit)
+                if lim < 1 or lim > 500:
+                    lim = 200
+            except ValueError:
+                lim = 200
+            sql += " LIMIT ?"
+            params.append(lim)
+            rows = db().execute(sql, params).fetchall()
+            items = []
+            for r in rows:
+                d = dict(r)
+                try:
+                    if isinstance(d.get("remind_days_before"), str):
+                        d["remind_days_before"] = json.loads(d["remind_days_before"])
+                except Exception:
+                    d["remind_days_before"] = []
+                items.append(d)
+            return self.send_json(200, {"rev": current_rev(), "items": items})
+        if method == "POST":
+            row = self.require_session()
+            if row is None:
+                return
+            data = self.read_json() or {}
+            item = normalize_calendar_item(data)
+            saved = upsert_calendar_item(item, row["username"])
+            rev = bump_rev()
+            return self.send_json(201, {"item": saved, "rev": rev})
+        self.send_json(405, {"error": "Method tidak diizinkan."})
+
+    def api_calendar_item(self, method: str, query: dict) -> None:
+        if not self.guard():
+            return
+        row = self.require_session()
+        if row is None:
+            return
+        data = self.read_json() or {}
+        if method == "PATCH":
+            identifier = str(data.get("id") or (query.get("id") or [""]))
+            existing = db().execute("SELECT * FROM calendar_items WHERE id=?", (identifier,)).fetchone()
+            if not existing:
+                return self.send_json(404, {"error": "Agenda tidak ditemukan."})
+            if data.get("toggle_done") and existing["type"] == "bill":
+                data["status"] = "paid" if existing["status"] != "paid" else "pending"
+            item = normalize_calendar_item(data, existing)
+            saved = upsert_calendar_item(item, row["username"])
+            rev = bump_rev()
+            return self.send_json(200, {"item": saved, "rev": rev})
+        if method == "DELETE":
+            identifier = str(data.get("id") or (query.get("id") or [""]))
+            conn = db()
+            cur = conn.execute("DELETE FROM calendar_items WHERE id=?", (identifier,))
+            if cur.rowcount == 0:
+                return self.send_json(404, {"error": "Agenda tidak ditemukan."})
+            rev = bump_rev()
+            return self.send_json(200, {"ok": True, "rev": rev})
+        self.send_json(405, {"error": "Method tidak diizinkan."})
+
 
     def api_reset(self, method: str, query: dict) -> None:
         if not self.guard():
