@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="css/laporan.css">
     <link rel="stylesheet" href="css/catat.css">
     <link rel="stylesheet" href="css/receipt.css">
-    <script type="module" src="js/boot.js"></script>
+    <script type="module" src="js/store.js"></script>
   </head>
   <body>
     <div class="shell shell--wide">
@@ -71,8 +71,8 @@
       </main>
     </div>
 
-    <button class="fab" id="fabAddCalendar" type="button" aria-label="Tambah agenda">
-      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+    <button class="fab" id="fabAddCalendar" type="button" aria-label="Tambah agenda" style="position:fixed;right:18px;bottom:calc(var(--nav-height,68px)+18px);width:56px;height:56px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(145deg,var(--primary),var(--income));color:#fff;border:none;box-shadow:var(--shadow-lg);z-index:50;">
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
     </button>
 
     <div id="sheetRoot"></div>

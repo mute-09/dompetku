@@ -231,8 +231,8 @@ function openForm(item=null){
 
 function init(){
   renderChips();
-  if(addBtn) addBtn.addEventListener('click', ()=>openForm(null));
-  if(fabBtn) fabBtn.addEventListener('click', ()=>openForm(null));
+  if(addBtn) addBtn.addEventListener('click', (e)=>{ e.preventDefault(); openForm(null); });
+  if(fabBtn) { fabBtn.addEventListener('click', (e)=>{ e.preventDefault(); openForm(null); }); console.log('fab attached'); }
   load();
 }
 
