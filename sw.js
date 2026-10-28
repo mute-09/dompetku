@@ -3,7 +3,7 @@ const APP_SHELL = [
   './',
   './index.html',
   './laporan.html',
-  './login.html',
+  './kalender.html',
   './manifest.json',
   './css/base.css',
   './css/catat.css',

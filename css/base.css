@@ -228,7 +228,42 @@ h1, h2, h3, h4 {
 .appbar__actions {
   margin-left: auto;
   display: flex;
+  align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.appbar__nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.appbar__nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: var(--radius-full);
+  font-size: 0.82rem;
+  color: var(--text-soft);
+  text-decoration: none;
+  transition: 0.18s var(--ease);
+}
+
+.appbar__nav-link:hover {
+  color: var(--text);
+}
+
+.appbar__nav-link--active {
+  background: var(--primary-soft);
+  color: var(--text);
+  font-weight: 600;
 }
 
 .icon-btn {

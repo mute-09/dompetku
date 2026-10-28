@@ -147,6 +147,28 @@ def init_db() -> None:
             oleh       TEXT
         );
         CREATE INDEX IF NOT EXISTS idx_transactions_tanggal ON transactions(tanggal);
+        CREATE TABLE IF NOT EXISTS calendar_items (
+            id              TEXT PRIMARY KEY,
+            type            TEXT NOT NULL CHECK (type IN ('schedule','birthday','bill')),
+            title           TEXT NOT NULL,
+            child           TEXT,
+            date            TEXT,
+            start_date      TEXT,
+            end_date        TEXT,
+            time            TEXT,
+            recurring       TEXT NOT NULL DEFAULT 'none' CHECK (recurring IN ('none','daily','weekly','monthly','yearly')),
+            remind_days_before TEXT DEFAULT '[]',
+            amount          INTEGER,
+            category        TEXT,
+            payee           TEXT,
+            status          TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','done','paid')),
+            notes           TEXT,
+            created_by      TEXT,
+            created_at      REAL NOT NULL,
+            updated_at      REAL NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_calendar_items_date ON calendar_items(date);
+        CREATE INDEX IF NOT EXISTS idx_calendar_items_type_date ON calendar_items(type, date);
         CREATE TABLE IF NOT EXISTS app_state (
             key    TEXT PRIMARY KEY,
             value  TEXT NOT NULL

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="auto">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Kalender • DompetKu</title>
+    <meta name="theme-color" content="#0b0d14">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="icons/icon-192.png">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/laporan.css">
+    <link rel="stylesheet" href="css/catat.css">
+    <link rel="stylesheet" href="css/receipt.css">
+    <script type="module" src="js/boot.js"></script>
+  </head>
+  <body>
+    <div class="shell shell--wide">
+      <header class="appbar" id="appbar">
+        <div class="appbar__brand">
+          <span class="appbar__mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+          </span>
+          <div>
+            <h1 class="appbar__title">Kalender</h1>
+            <p class="appbar__sub" id="appbarSub">Jadwal anak, ulang tahun & tagihan</p>
+          </div>
+        </div>
+        <div class="appbar__actions">
+          <nav class="appbar__nav" aria-label="Navigasi utama">
+            <a class="appbar__nav-link" href="index.html">Catat</a>
+            <a class="appbar__nav-link" href="laporan.html">Laporan</a>
+            <a class="appbar__nav-link appbar__nav-link--active" href="kalender.html">Kalender</a>
+          </nav>
+          <span class="sync" id="syncBadge" data-tone="idle" hidden></span>
+          <button class="icon-btn" id="themeToggle" type="button" aria-label="Ganti tema"></button>
+          <button class="icon-btn" id="settingsBtn" type="button" aria-label="Pengaturan">
+            <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 14.5a1.6 1.6 0 0 0 .32 1.76l.06.06a2 2 0 1 1-2.83 2.83l-.05-.06a1.6 1.6 0 0 0-1.77-.32 1.6 1.6 0 0 0-.97 1.47V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1.05-1.46 1.6 1.6 0 0 0-1.76.32l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.6 1.6 0 0 0 .32-1.76 1.6 1.6 0 0 0-1.47-.98H4a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.46-1.04 1.6 1.6 0 0 0-.32-1.77l-.06-.05a2 2 0 1 1 2.83-2.83l.06.06a1.6 1.6 0 0 0 1.76.32H10a1.6 1.6 0 0 0 .98-1.47V4a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 .98 1.47 1.6 1.6 0 0 0 1.75-.33l.06-.05a2 2 0 1 1 2.83 2.83l-.06.06a1.6 1.6 0 0 0-.32 1.76V10c.11.61.62 1.05 1.24 1.06H20a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5.94z"/>
+            </svg>
+          </button>
+          <button class="icon-btn icon-btn--account" id="accountBtn" type="button" aria-label="Akun">?</button>
+        </div>
+      </header>
+
+      <main class="page">
+        <section class="card" aria-label="Filter kalender">
+          <div class="chips chips--scroll" id="calendarFilterChips" role="group" aria-label="Tipe"></div>
+        </section>
+
+        <section class="card" aria-label="Daftar jadwal">
+          <header class="card__header">
+            <div>
+              <h2 class="card__title">Agenda</h2>
+              <p class="card__subtitle">Ringkas per tanggal, tanpa kalender bulanan penuh</p>
+            </div>
+            <button class="btn btn--primary btn--small" id="addCalendarBtn" type="button">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              Tambah
+            </button>
+          </header>
+          <div class="list" id="calendarList"></div>
+          <p class="empty" id="calendarEmpty" hidden>Belum ada jadwal. Tambah jadwal anak, ulang tahun, atau tagihan di sini.</p>
+        </section>
+      </main>
+    </div>
+
+    <button class="fab" id="fabAddCalendar" type="button" aria-label="Tambah agenda">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+    </button>
+
+    <div id="sheetRoot"></div>
+    <div id="modalRoot"></div>
+    <div id="toastRoot" class="toast-stack"></div>
+
+    <script type="module" src="js/calendar.js"></script>
+  </body>
+</html>
