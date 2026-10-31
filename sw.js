@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dompetku-1.16';
+const CACHE_NAME = 'dompetku-1.17';
 const APP_SHELL = [
   './',
   './index.html',
@@ -21,6 +21,7 @@ const APP_SHELL = [
   './js/quick-form.js',
   './js/tx-view.js',
   './js/catat.js',
+  './js/calendar.js',
   './js/laporan.js',
   './vendor/chart.umd.min.js',
   './icons/icon.svg',
