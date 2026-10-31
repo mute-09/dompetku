@@ -55,14 +55,19 @@
   cursor: pointer;
 }
 
+.cal__check[hidden],
+.cal__newcat[hidden] {
+  display: none;
+}
+
+.cal__newcat {
+  margin-top: 8px;
+}
+
 .cal__check input {
   width: 18px;
   height: 18px;
   accent-color: var(--income);
-}
-
-.sheet-form .segmented {
-  margin-bottom: 2px;
 }
 
 .cal__add {

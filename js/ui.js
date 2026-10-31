@@ -305,7 +305,7 @@ export function openSettings() {
     ]),
     el('div', { class: 'field' }, [
       el('label', { class: 'field__label', for: 'themeSelect', text: 'Tampilan' }),
-      themeSelect
+      el('div', { class: 'select' }, [themeSelect])
     ]),
     el('div', { class: 'settings__actions' }, [
       el('button', { class: 'btn btn--ghost', type: 'button', onClick: () => { store.downloadJSON(); toast({ message: 'Backup JSON diunduh.' }); } }, [svgIcon(ICONS.download, 18), 'Unduh backup']),

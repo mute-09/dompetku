@@ -1,4 +1,4 @@
-/* Halaman Kalender — agenda keluarga: acara, pengingat, tagihan, dll. */
+/* Halaman Kalender — agenda keluarga dengan kategori bebas (bisa dibuat sendiri). */
 
 import * as store from './store.js';
 import { ApiError, SessionExpired, api } from './api.js';
@@ -27,16 +27,12 @@ import {
 
 const CACHE_KEY = 'dompetku.calendar';
 
-const TYPES = [
-  { id: 'event', label: 'Acara', short: 'Acara' },
-  { id: 'reminder', label: 'Pengingat', short: 'Pengingat' },
-  { id: 'bill', label: 'Tagihan', short: 'Tagihan' },
-  { id: 'birthday', label: 'Ulang Tahun', short: 'Ulang tahun' },
-  { id: 'meeting', label: 'Rapat', short: 'Rapat' },
-  { id: 'health', label: 'Kesehatan', short: 'Kesehatan' },
-  { id: 'other', label: 'Lainnya', short: 'Lainnya' }
-];
-const FILTERS = [{ id: 'all', label: 'Semua' }, ...TYPES];
+// Saran awal di dropdown; kategori yang sudah pernah dipakai ikut muncul otomatis.
+const SUGGESTED_CATEGORIES = ['Acara', 'Ulang Tahun', 'Tagihan'];
+const ALL = 'all';
+const NONE = '__none__';
+const NEW_CATEGORY = '__new__';
+const NO_CATEGORY_LABEL = 'Tanpa kategori';
 
 const dom = {
   filterChips: document.getElementById('calendarFilterChips'),
@@ -46,7 +42,7 @@ const dom = {
   appbar: document.getElementById('appbar')
 };
 
-const view = { filter: 'all', showPast: false };
+const view = { filter: ALL, showPast: false };
 let items = readCache();
 
 function readCache() {
@@ -66,8 +62,44 @@ function writeCache(list) {
   }
 }
 
-function typeMeta(id) {
-  return TYPES.find((t) => t.id === id) || TYPES[0];
+function cleanCategory(value) {
+  return String(value || '').replace(/\s+/g, ' ').trim().slice(0, 40);
+}
+
+function categoryOf(it) {
+  return cleanCategory(it.category);
+}
+
+/** Kunci saring: tidak peka huruf besar/kecil, supaya "tagihan" dan "Tagihan" satu kelompok. */
+function categoryKey(it) {
+  return categoryOf(it).toLowerCase() || NONE;
+}
+
+/** Kategori yang sudah dipakai (ejaan pertama yang ditemukan) beserta jumlahnya, urut abjad. */
+function usedCategories() {
+  const map = new Map();
+  for (const it of items) {
+    const name = categoryOf(it);
+    if (!name) continue;
+    const key = name.toLowerCase();
+    const entry = map.get(key) || { key, name, count: 0 };
+    entry.count += 1;
+    map.set(key, entry);
+  }
+  return [...map.values()].sort((a, b) => a.name.localeCompare(b.name, 'id'));
+}
+
+/** Pilihan dropdown: kategori terpakai + saran awal, tanpa duplikat. */
+function categoryOptions() {
+  const names = usedCategories().map((c) => c.name);
+  for (const s of SUGGESTED_CATEGORIES) {
+    if (!names.some((n) => n.toLowerCase() === s.toLowerCase())) names.push(s);
+  }
+  return names.sort((a, b) => a.localeCompare(b, 'id'));
+}
+
+function matchesFilter(it) {
+  return view.filter === ALL || categoryKey(it) === view.filter;
 }
 
 function itemDate(it) {
@@ -105,10 +137,21 @@ function groupByDate(list) {
 
 /* === Render === */
 
+function filterOptions() {
+  const list = [{ id: ALL, label: 'Semua', count: items.length }];
+  for (const c of usedCategories()) list.push({ id: c.key, label: c.name, count: c.count });
+  const none = items.filter((x) => !categoryOf(x)).length;
+  if (none) list.push({ id: NONE, label: NO_CATEGORY_LABEL, count: none });
+  return list;
+}
+
 function renderChips() {
   clearNode(dom.filterChips);
-  for (const f of FILTERS) {
-    const count = f.id === 'all' ? items.length : items.filter((x) => x.type === f.id).length;
+  const filters = filterOptions();
+  // Kategori yang disaring bisa hilang (agenda terakhirnya dihapus/diganti): kembali ke Semua.
+  if (!filters.some((f) => f.id === view.filter)) view.filter = ALL;
+  for (const f of filters) {
+    const count = f.count;
     dom.filterChips.append(
       el(
         'button',
@@ -130,7 +173,7 @@ function renderChips() {
 
 function itemRow(it, today) {
   const overdue = isOverdue(it, today);
-  const meta = [typeMeta(it.type).short, it.time, it.child].filter(Boolean).join(' · ');
+  const meta = [categoryOf(it), it.time, it.child].filter(Boolean).join(' · ');
   const aside = [];
   if (it.type === 'bill') {
     if (it.amount != null) aside.push(el('span', { class: 'tx__amount num is-out', text: formatRupiah(it.amount) }));
@@ -177,7 +220,7 @@ function dayGroup(date, list, today) {
 function renderList() {
   clearNode(dom.list);
   const today = todayStr();
-  const data = items.filter((x) => view.filter === 'all' || x.type === view.filter);
+  const data = items.filter(matchesFilter);
 
   // Agenda mendatang dulu; tagihan lewat jatuh tempo yang belum lunas tetap di atas karena masih perlu ditindak.
   const upcoming = data.filter((x) => itemDate(x) >= today || isOverdue(x, today)).sort(byDateTime);
@@ -252,18 +295,42 @@ function openForm(item = null) {
   if (!item && blockedOffline()) return;
   const isEdit = Boolean(item);
   const formId = `calendarForm${++formSeq}`;
-  let type = item?.type || (view.filter !== 'all' ? view.filter : 'event');
-
   const form = el('form', { class: 'form', id: formId, novalidate: true });
 
-  const typeBtns = TYPES.map((t) =>
-    el('button', { class: 'segmented__btn', type: 'button', 'data-type': t.id, onClick: () => setType(t.id) }, t.label)
-  );
+  // Kategori awal: milik agenda yang diubah, atau kategori yang sedang disaring.
+  const filtered = usedCategories().find((c) => c.key === view.filter);
+  const initialCategory = isEdit ? categoryOf(item) : filtered?.name || '';
+  const options = categoryOptions();
+  if (initialCategory && !options.some((n) => n.toLowerCase() === initialCategory.toLowerCase())) options.push(initialCategory);
+
+  const categorySelect = el('select', { class: 'field__control', name: 'category', id: `${formId}Category` }, [
+    el('option', { value: '', text: NO_CATEGORY_LABEL }),
+    ...options.map((name) => el('option', { value: name, text: name })),
+    el('option', { value: NEW_CATEGORY, text: '+ Kategori baru…' })
+  ]);
+  categorySelect.value = options.find((n) => n.toLowerCase() === initialCategory.toLowerCase()) || '';
+
+  const newCategoryInput = el('input', {
+    class: 'field__control',
+    name: 'newCategory',
+    maxlength: '40',
+    autocomplete: 'off',
+    placeholder: 'Tulis nama kategori, mis. Sekolah',
+    'aria-label': 'Nama kategori baru'
+  });
+  const newCategoryWrap = el('div', { class: 'cal__newcat', hidden: true }, [newCategoryInput]);
+  categorySelect.addEventListener('change', () => {
+    const isNew = categorySelect.value === NEW_CATEGORY;
+    newCategoryWrap.hidden = !isNew;
+    if (isNew) newCategoryInput.focus();
+  });
+
   const titleInput = el('input', {
     class: 'field__control',
     name: 'title',
     maxlength: '120',
     autocomplete: 'off',
+    placeholder: 'Contoh: Les renang, Bayar listrik',
     value: item?.title || ''
   });
   const dateInput = el('input', { class: 'field__control field__control--date', type: 'date', name: 'date', value: itemDate(item || {}) || todayStr() });
@@ -277,47 +344,47 @@ function openForm(item = null) {
     placeholder: '0',
     value: item?.amount != null ? formatNominalInput(item.amount) : ''
   });
+  const paidInput = el('input', { type: 'checkbox', name: 'paid', checked: item?.status === 'paid' });
+  const paidField = el('label', { class: 'cal__check' }, [paidInput, el('span', { text: 'Sudah lunas' })]);
+  // Status lunas hanya relevan kalau ada nominal.
+  const syncPaid = () => {
+    paidField.hidden = !amountInput.value.trim();
+  };
   amountInput.addEventListener('input', () => {
     amountInput.value = formatNominalInput(amountInput.value);
+    syncPaid();
   });
-  const paidInput = el('input', { type: 'checkbox', name: 'paid', checked: item?.status === 'paid' });
+  syncPaid();
   const notesInput = el('textarea', { class: 'field__control', name: 'notes', rows: '3', maxlength: '500' }, item?.notes || '');
   const err = el('p', { class: 'form-error', role: 'alert', hidden: true });
 
-  const childField = field('Nama anak (opsional)', childInput);
-  const billFields = el('div', {}, [
-    field('Nominal tagihan (opsional)', amountInput),
-    el('label', { class: 'cal__check' }, [paidInput, el('span', { text: 'Sudah lunas' })])
-  ]);
+  // Nama anak warisan versi lama: hanya tampil kalau agendanya memang punya isian ini,
+  // supaya tetap bisa diubah/dikosongkan.
+  const hasChild = Boolean(item?.child);
 
   form.append(
-    el('div', { class: 'segmented', role: 'group', 'aria-label': 'Jenis agenda' }, typeBtns),
-    field('Judul', titleInput),
-    el('div', { class: 'field-row' }, [field('Tanggal', dateInput), field('Jam (opsional)', timeInput)]),
-    childField,
-    billFields,
-    field('Catatan (opsional)', notesInput),
-    err
+    ...[
+      el('div', { class: 'field' }, [
+        el('label', { class: 'field__label', for: categorySelect.id, text: 'Kategori' }),
+        el('div', { class: 'select' }, [categorySelect]),
+        newCategoryWrap
+      ]),
+      field('Judul', titleInput),
+      el('div', { class: 'field-row' }, [field('Tanggal', dateInput), field('Jam (opsional)', timeInput)]),
+      hasChild ? field('Nama anak (opsional)', childInput) : null,
+      field('Nominal (opsional)', amountInput),
+      paidField,
+      field('Catatan (opsional)', notesInput),
+      err
+    ].filter(Boolean)
   );
 
-  const placeholders = {
-    event: 'Contoh: Acara keluarga',
-    reminder: 'Contoh: Bayar pajak kendaraan',
-    bill: 'Contoh: Listrik PLN',
-    birthday: 'Contoh: Ulang tahun Aisyah',
-    meeting: 'Contoh: Rapat kantor',
-    health: 'Contoh: Cek gigi',
-    other: 'Contoh: Catatan penting'
-  };
-
-  function setType(next) {
-    type = next;
-    typeBtns.forEach((b) => b.classList.toggle('is-active', b.dataset.type === type));
-    titleInput.placeholder = placeholders[type];
-    childField.hidden = true; // field anak tidak diperlukan untuk kategori umum
-    billFields.hidden = type !== 'bill';
+  function resolveCategory() {
+    if (categorySelect.value !== NEW_CATEGORY) return categorySelect.value;
+    const typed = cleanCategory(newCategoryInput.value);
+    // Pakai ejaan yang sudah ada kalau namanya sama, supaya tidak muncul kategori kembar.
+    return options.find((n) => n.toLowerCase() === typed.toLowerCase()) || typed;
   }
-  setType(type);
 
   const footer = el('div', { class: 'btn-row' });
   if (isEdit) {
@@ -367,17 +434,26 @@ function openForm(item = null) {
       dateInput.focus();
       return;
     }
-    const isBill = type === 'bill';
+    const category = resolveCategory();
+    if (categorySelect.value === NEW_CATEGORY && !category) {
+      showError('Nama kategori baru belum diisi.');
+      newCategoryInput.focus();
+      return;
+    }
+    // `type` hanya penanda perilaku: ada nominal = tagihan (status lunas & penanda Terlambat).
+    const hasAmount = Boolean(amountInput.value.trim());
     const payload = {
-      type,
+      type: hasAmount ? 'bill' : 'schedule',
+      category,
       title,
       date: dateInput.value,
       time: timeInput.value || '',
-      child: isBill ? '' : childInput.value.trim(),
-      amount: isBill && amountInput.value ? parseNominalInput(amountInput.value) : '',
-      status: isBill && paidInput.checked ? 'paid' : 'pending',
+      amount: hasAmount ? parseNominalInput(amountInput.value) : '',
+      status: hasAmount && paidInput.checked ? 'paid' : 'pending',
       notes: notesInput.value.trim()
     };
+    // Tanpa kunci `child`, server mempertahankan nilai lama.
+    if (hasChild) payload.child = childInput.value.trim();
     saveBtn.disabled = true;
     try {
       if (isEdit) await api.updateCalendarItem({ ...payload, id: item.id });
@@ -394,7 +470,6 @@ function openForm(item = null) {
 
   const handle = openSheet({
     title: isEdit ? 'Ubah Agenda' : 'Tambah Agenda',
-    subtitle: 'Jadwal anak, ulang tahun & tagihan',
     body: el('div', { class: 'sheet-form' }, [form]),
     footer
   });

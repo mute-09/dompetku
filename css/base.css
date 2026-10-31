@@ -787,6 +787,36 @@ html[data-theme='light'] .card {
   box-shadow: 0 0 0 3px var(--primary-soft);
 }
 
+/* Dropdown: panah sendiri supaya seragam di tema gelap/terang, dan opsi tidak putih-di-atas-putih. */
+.select {
+  position: relative;
+}
+
+.select::after {
+  content: '';
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid var(--text-muted);
+  border-bottom: 2px solid var(--text-muted);
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+}
+
+select.field__control {
+  -webkit-appearance: none;
+  appearance: none;
+  padding-right: 40px;
+  cursor: pointer;
+}
+
+select.field__control option {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
 .field__hint {
   font-size: 0.72rem;
   color: var(--text-muted);

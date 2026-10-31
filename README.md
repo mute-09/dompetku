@@ -42,13 +42,22 @@ Beranda sengaja dibuat **ringkas**: saldo dan dua tombol. Semua input lain ada d
 
 Agenda keluarga bersama, tersimpan di server (tabel `calendar_items`) sehingga buya dan ummah melihat daftar yang sama.
 
-- Tujuh jenis agenda: **Acara**, **Pengingat**, **Tagihan** (nominal + status lunas), **Ulang Tahun**, **Rapat**, **Kesehatan**, dan **Lainnya**.
-- Chip saring **Semua** dan setiap jenis agenda, masing-masing dengan jumlah.
+- **Kategori bebas** lewat dropdown: berisi kategori yang sudah pernah dipakai + saran awal
+  (`SUGGESTED_CATEGORIES` di `js/calendar.js`), pilihan **Tanpa kategori**, dan **+ Kategori baru…**
+  untuk mengetik sendiri (maks. 40 karakter). Nama yang sama beda huruf besar/kecil disatukan.
+- **Nominal opsional** untuk semua agenda. Begitu nominal diisi, agenda diperlakukan sebagai tagihan:
+  muncul centang **Sudah lunas**, status *Belum lunas/Lunas*, dan penanda **Terlambat**.
+- Chip saring **Semua** + setiap kategori yang dipakai (dan *Tanpa kategori* bila ada), masing-masing dengan jumlah.
+- Data: label kategori di kolom `category`; kolom `type` hanya penanda perilaku (`bill` = ada nominal,
+  selain itu `schedule`; `birthday` tersisa dari data lama). Nilai `type` lain dipetakan ke `schedule`
+  agar tidak melanggar CHECK tabel. Agenda lama diberi kategori *Jadwal Anak / Ulang Tahun / Tagihan*
+  sesuai jenisnya, sekali saja (penanda `calendar_category_backfill` di `app_state`).
 - Daftar dikelompokkan per tanggal dengan label *Hari ini*, *Besok*, *Dalam N hari*. Agenda mendatang tampil
   lebih dulu; agenda yang sudah lewat dilipat di balik tombol **Tampilkan agenda lewat**.
 - Tagihan yang lewat jatuh tempo dan belum lunas tetap di atas dengan penanda **Terlambat**.
-- Tombol **Tambah** membuka sheet: pilih jenis, judul, tanggal (wajib), jam, nama anak, nominal tagihan
-  (terformat otomatis), centang **Sudah lunas**, dan catatan. Ketuk baris untuk mengubah atau **menghapus**
+- Tombol **Tambah** membuka sheet: kategori (dropdown), judul, tanggal (wajib), jam, nominal
+  (terformat otomatis), centang **Sudah lunas**, dan catatan. Field *Nama anak* hanya muncul saat mengubah
+  agenda lama yang memang punya isian itu. Ketuk baris untuk mengubah atau **menghapus**
   (dengan konfirmasi). Field opsional bisa dikosongkan saat mengubah.
 - Daftar terakhir disimpan di `localStorage` (`dompetku.calendar`), jadi tetap bisa dibaca offline;
   menambah/mengubah/menghapus dikunci saat offline seperti halaman lain.
