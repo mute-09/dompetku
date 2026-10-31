@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dompetku-1.21';
+const CACHE_NAME = 'dompetku-1.22';
 const APP_SHELL = [
   './',
   './index.html',
@@ -10,6 +10,7 @@ const APP_SHELL = [
   './css/laporan.css',
   './css/auth.css',
   './css/receipt.css',
+  './css/kalender.css',
   './js/utils.js',
   './js/api.js',
   './js/receipt.js',
@@ -104,9 +105,8 @@ self.addEventListener('fetch', (event) => {
         .catch(async () => {
           const cached = await caches.match(request);
           if (cached) return cached;
-          const fallback = url.pathname.includes('laporan')
-            ? await caches.match('./laporan.html')
-            : await caches.match('./index.html');
+          const page = ['laporan', 'kalender'].find((name) => url.pathname.includes(name));
+          const fallback = await caches.match(page ? `./${page}.html` : './index.html');
           return fallback || Response.error();
         })
     );
@@ -116,7 +116,7 @@ self.addEventListener('fetch', (event) => {
   if (!isShell(url)) return;
 
   event.respondWith(
-    caches.match(request).then((cached) => {
+    caches.match(request, { ignoreSearch: true }).then((cached) => {
       const network = fetch(request, { cache: 'no-cache' })
         .then((response) => {
           if (response && response.status === 200) {

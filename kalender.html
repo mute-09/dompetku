@@ -1,18 +1,29 @@
 <!DOCTYPE html>
-<html lang="id" data-theme="auto">
+<html lang="id" data-theme="dark">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <title>Kalender • DompetKu</title>
     <meta name="theme-color" content="#0b0d14">
+    <script>
+      // Terapkan tema sebelum paint pertama (anti-kedip) — sejajar resolveTheme() di ui.js.
+      try {
+        var t = (JSON.parse(localStorage.getItem('dompetku.v2') || '{}').settings || {}).theme;
+        var sistem = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        document.documentElement.dataset.theme = (t === 'light' || t === 'dark') ? t : sistem;
+        document.querySelector('meta[name="theme-color"]').content =
+          document.documentElement.dataset.theme === 'light' ? '#f6f7fb' : '#0b0d14';
+      } catch (e) {}
+    </script>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="DompetKu">
+    <title>DompetKu — Kalender</title>
     <link rel="manifest" href="manifest.json">
-    <link rel="icon" href="icons/icon-192.png">
-    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <link rel="icon" type="image/svg+xml" href="icons/icon.svg?v=1.22">
+    <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png?v=1.22">
     <link rel="stylesheet" href="css/base.css">
     <link rel="stylesheet" href="css/laporan.css">
-    <link rel="stylesheet" href="css/catat.css">
-    <link rel="stylesheet" href="css/receipt.css">
-    <script type="module" src="js/store.js"></script>
+    <link rel="stylesheet" href="css/kalender.css">
   </head>
   <body>
     <div class="shell shell--wide">
@@ -46,28 +57,26 @@
 
       <main class="page">
         <section class="card" aria-label="Filter agenda">
-          <header class="card__header" style="align-items:center;gap:12px;">
-            <div>
-              <h2 class="card__title">Tampilkan agenda</h2>
-              <p class="card__subtitle">Saring berdasarkan jenis agenda</p>
-            </div>
-          </header>
-          <div class="chips chips--scroll" id="calendarFilterChips" role="group" aria-label="Tipe"></div>
+          <div class="card__head">
+            <h2 class="card__title">Tampilkan agenda</h2>
+            <span class="card__hint">Saring per jenis</span>
+          </div>
+          <div class="chips chips--scroll" id="calendarFilterChips" role="group" aria-label="Jenis agenda"></div>
         </section>
 
-        <section class="card" aria-label="Daftar jadwal">
-          <header class="card__header" style="align-items:center;gap:16px;">
-            <div style="flex:1;min-width:0;">
+        <section class="card" aria-label="Daftar agenda">
+          <div class="card__head">
+            <div>
               <h2 class="card__title">Agenda</h2>
-              <p class="card__subtitle" style="margin-bottom:18px;">Ringkas per tanggal, tanpa kalender bulanan penuh</p>
+              <p class="card__hint">Mendatang dulu, dikelompokkan per tanggal</p>
             </div>
-            <button class="btn btn--primary btn--small" id="addCalendarBtn" type="button" style="flex-shrink:0;padding:0 14px;height:32px;min-height:32px;line-height:1;">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-              Tambah agenda
+            <button class="btn btn--primary cal__add" id="addCalendarBtn" type="button">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              Tambah
             </button>
-          </header>
-          <div class="list" id="calendarList"></div>
-          <p class="empty" id="calendarEmpty" hidden>Belum ada jadwal. Tambah jadwal anak, ulang tahun, atau tagihan di sini.</p>
+          </div>
+          <div id="calendarList"></div>
+          <p class="empty cal__empty" id="calendarEmpty" hidden>Belum ada agenda. Tambah jadwal anak, ulang tahun, atau tagihan di sini.</p>
         </section>
       </main>
     </div>
@@ -93,14 +102,7 @@
       </a>
     </nav>
 
-    <button class="fab" id="fabAddCalendar" type="button" aria-label="Tambah agenda" style="position:fixed;right:18px;bottom:calc(var(--nav-height,68px)+18px);width:56px;height:56px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(145deg,var(--primary),var(--income));color:#fff;border:none;box-shadow:var(--shadow-lg);z-index:50;">
-      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-    </button>
 
-    <div id="sheetRoot"></div>
-    <div id="modalRoot"></div>
-    <div id="toastRoot" class="toast-stack"></div>
-
-    <script type="module" src="js/calendar.js?v=1.21"></script>
+    <script type="module" src="js/calendar.js?v=1.22"></script>
   </body>
 </html>

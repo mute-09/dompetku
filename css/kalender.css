@@ -1,0 +1,82 @@
+/* Halaman Kalender — memakai baris .tx dan .daygroup dari laporan.css */
+
+.cal__row {
+  border-left: 3px solid var(--primary);
+}
+
+.cal__row--birthday {
+  border-left-color: var(--income);
+}
+
+.cal__row--bill {
+  border-left-color: var(--warn);
+}
+
+.cal__aside {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.cal__status {
+  font-size: 0.66rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: var(--warn-soft);
+  color: var(--warn);
+  white-space: nowrap;
+}
+
+.cal__status.is-paid {
+  background: var(--income-soft);
+  color: var(--income);
+}
+
+.cal__note {
+  font-size: 0.84rem;
+  color: var(--text-muted);
+  padding: 4px 4px 12px;
+}
+
+.cal__past-toggle {
+  margin: 16px 0;
+}
+
+.cal__check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  font-size: 0.88rem;
+  color: var(--text-soft);
+  cursor: pointer;
+}
+
+.cal__check input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--income);
+}
+
+.sheet-form .segmented {
+  margin-bottom: 2px;
+}
+
+.cal__add {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  font-size: 0.84rem;
+}
+
+.cal__empty {
+  font-size: 0.86rem;
+  color: var(--text-muted);
+}
+
+#calendarFilterChips .chip {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
