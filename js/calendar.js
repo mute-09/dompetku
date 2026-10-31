@@ -9,7 +9,7 @@ import {
   setupUpdateCheck,
   openSheet
 } from './ui.js';
-import { Api } from './api.js';
+import { api } from './api.js';
 
 const filterChips = document.getElementById('calendarFilterChips');
 const listEl = document.getElementById('calendarList');
@@ -119,7 +119,7 @@ function renderList(){
 
 async function load(){
   try{
-    const res = await Api.get('/api/calendar-items?limit=200');
+    const res = await api.calendarItems(200);
     if(res && res.items) items = res.items;
   }catch(e){}
   renderList();
@@ -194,7 +194,7 @@ function openForm(item=null){
     del.addEventListener('click', async ()=>{
       if(!confirm('Hapus agenda ini?')) return;
       try{
-        await Api.del('/api/calendar-item', { id: editing.id });
+        await api.deleteCalendarItem(editing.id);
         handle.close();
         await load();
       }catch(e){ err.textContent=e.message||'Gagal menghapus'; err.hidden=false; }
@@ -226,8 +226,8 @@ function openForm(item=null){
     };
     if(isEdit) data.id = editing.id;
     try{
-      if(isEdit) await Api.patch('/api/calendar-item', data);
-      else await Api.post('/api/calendar-items', data);
+      if(isEdit) await api.updateCalendarItem(data);
+      else await api.createCalendarItem(data);
       handle.close();
       await load();
     }catch(e){ err.textContent=e.message||'Gagal menyimpan'; err.hidden=false; }
@@ -258,7 +258,7 @@ function init(){
 
 async function guard(){
   try{
-    if(Api?.session){ await Api.session(); return true; }
+    if(api?.session){ await api.session(); return true; }
   }catch(e){
     window.location.replace('login.html?alasan=keluar');
     return false;

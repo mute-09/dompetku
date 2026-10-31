@@ -110,6 +110,10 @@ export const api = {
   ocr: (image, psm) => request('POST', 'ocr', { body: { image, psm }, timeout: 120000 }),
   parseReceipt: (text) => request('POST', 'receipt-parse', { body: { text }, timeout: 20000 }),
   importState: (state) => request('POST', 'import', { body: { state }, timeout: 60000 }),
+  calendarItems: (limit = 200) => request('GET', 'calendar-items', { query: { limit } }),
+  createCalendarItem: (item) => request('POST', 'calendar-items', { body: item }),
+  updateCalendarItem: (item) => request('PATCH', 'calendar-item', { body: item }),
+  deleteCalendarItem: (id) => request('DELETE', 'calendar-item', { body: { id } }),
   reset: () => request('POST', 'reset', { body: { confirm: 'HAPUS SEMUA' } }),
   exportUrl: () => new URL(apiPath('export'), document.baseURI).href
 };
