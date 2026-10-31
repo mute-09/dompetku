@@ -1,4 +1,4 @@
-/* Halaman Kalender — jadwal anak, ulang tahun, dan tagihan. */
+/* Halaman Kalender — agenda keluarga: acara, pengingat, tagihan, dll. */
 
 import * as store from './store.js';
 import { ApiError, SessionExpired, api } from './api.js';
@@ -28,9 +28,13 @@ import {
 const CACHE_KEY = 'dompetku.calendar';
 
 const TYPES = [
-  { id: 'schedule', label: 'Jadwal Anak', short: 'Jadwal' },
+  { id: 'event', label: 'Acara', short: 'Acara' },
+  { id: 'reminder', label: 'Pengingat', short: 'Pengingat' },
+  { id: 'bill', label: 'Tagihan', short: 'Tagihan' },
   { id: 'birthday', label: 'Ulang Tahun', short: 'Ulang tahun' },
-  { id: 'bill', label: 'Tagihan', short: 'Tagihan' }
+  { id: 'meeting', label: 'Rapat', short: 'Rapat' },
+  { id: 'health', label: 'Kesehatan', short: 'Kesehatan' },
+  { id: 'other', label: 'Lainnya', short: 'Lainnya' }
 ];
 const FILTERS = [{ id: 'all', label: 'Semua' }, ...TYPES];
 
@@ -248,7 +252,7 @@ function openForm(item = null) {
   if (!item && blockedOffline()) return;
   const isEdit = Boolean(item);
   const formId = `calendarForm${++formSeq}`;
-  let type = item?.type || (view.filter !== 'all' ? view.filter : 'schedule');
+  let type = item?.type || (view.filter !== 'all' ? view.filter : 'event');
 
   const form = el('form', { class: 'form', id: formId, novalidate: true });
 
@@ -297,16 +301,20 @@ function openForm(item = null) {
   );
 
   const placeholders = {
-    schedule: 'Contoh: Les renang',
+    event: 'Contoh: Acara keluarga',
+    reminder: 'Contoh: Bayar pajak kendaraan',
+    bill: 'Contoh: Listrik PLN',
     birthday: 'Contoh: Ulang tahun Aisyah',
-    bill: 'Contoh: Listrik PLN'
+    meeting: 'Contoh: Rapat kantor',
+    health: 'Contoh: Cek gigi',
+    other: 'Contoh: Catatan penting'
   };
 
   function setType(next) {
     type = next;
     typeBtns.forEach((b) => b.classList.toggle('is-active', b.dataset.type === type));
     titleInput.placeholder = placeholders[type];
-    childField.hidden = type === 'bill';
+    childField.hidden = true; // field anak tidak diperlukan untuk kategori umum
     billFields.hidden = type !== 'bill';
   }
   setType(type);

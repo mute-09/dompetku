@@ -3,7 +3,7 @@
 Aplikasi **Sirkulasi Keuangan Rumah Tangga** berbasis Web (PWA) dengan backend Python standar
 (tanpa dependency) sehingga data tersimpan di satu server dan bisa diakses dua anggota keluarga.
 Dibagi menjadi empat halaman: **Masuk** untuk autentikasi, **Catat** untuk input, **Laporan** untuk membaca,
-dan **Kalender** untuk jadwal anak, ulang tahun, dan tagihan. Ketiga halaman utama terhubung lewat navigasi bawah.
+dan **Kalender** untuk agenda keluarga (acara, pengingat, tagihan, dll). Ketiga halaman utama terhubung lewat navigasi bawah.
 
 ## Halaman 1 — Catat (`index.html`)
 
@@ -42,8 +42,8 @@ Beranda sengaja dibuat **ringkas**: saldo dan dua tombol. Semua input lain ada d
 
 Agenda keluarga bersama, tersimpan di server (tabel `calendar_items`) sehingga buya dan ummah melihat daftar yang sama.
 
-- Tiga jenis agenda: **Jadwal Anak** (dengan nama anak), **Ulang Tahun**, dan **Tagihan** (nominal + status lunas).
-- Chip saring **Semua / Jadwal Anak / Ulang Tahun / Tagihan**, masing-masing dengan jumlah agenda.
+- Tujuh jenis agenda: **Acara**, **Pengingat**, **Tagihan** (nominal + status lunas), **Ulang Tahun**, **Rapat**, **Kesehatan**, dan **Lainnya**.
+- Chip saring **Semua** dan setiap jenis agenda, masing-masing dengan jumlah.
 - Daftar dikelompokkan per tanggal dengan label *Hari ini*, *Besok*, *Dalam N hari*. Agenda mendatang tampil
   lebih dulu; agenda yang sudah lewat dilipat di balik tombol **Tampilkan agenda lewat**.
 - Tagihan yang lewat jatuh tempo dan belum lunas tetap di atas dengan penanda **Terlambat**.

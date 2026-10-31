@@ -149,7 +149,7 @@ def init_db() -> None:
         CREATE INDEX IF NOT EXISTS idx_transactions_tanggal ON transactions(tanggal);
         CREATE TABLE IF NOT EXISTS calendar_items (
             id              TEXT PRIMARY KEY,
-            type            TEXT NOT NULL CHECK (type IN ('schedule','birthday','bill')),
+            type            TEXT NOT NULL CHECK (type IN ('event','reminder','bill','birthday','meeting','health','other','schedule')),
             title           TEXT NOT NULL,
             child           TEXT,
             date            TEXT,
@@ -821,8 +821,8 @@ def normalize_calendar_item(data: dict, existing: dict | sqlite3.Row | None = No
         value = data[key] if key in data else existing.get(key)
         return default if value is None else value
 
-    item_type = str(pick("type", "schedule")).strip().lower() or "schedule"
-    if item_type not in {"schedule", "birthday", "bill"}:
+    item_type = str(pick("type", "event")).strip().lower() or "event"
+    if item_type not in {"event", "reminder", "bill", "birthday", "meeting", "health", "other", "schedule"}:
         raise ValueError("Tipe tidak valid.")
     out["type"] = item_type
 
