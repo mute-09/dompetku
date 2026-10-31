@@ -71,7 +71,7 @@ DEFAULT_PASSWORD = os.environ.get("DOMPETKU_DEFAULT_PASSWORD", "rahasiasekali")
 # Harus sama dengan APP_VERSION di js/utils.js dan CACHE_NAME di sw.js
 # (dicek tests/test_version.py). App menampilkan tombol muat ulang kalau server
 # sudah lebih baru dari shell yang sedang berjalan.
-APP_VERSION = os.environ.get("DOMPETKU_VERSION", "1.22")
+APP_VERSION = os.environ.get("DOMPETKU_VERSION", "1.23")
 
 SCRYPT_N = 1 << 14
 SCRYPT_R = 8
@@ -149,7 +149,7 @@ def init_db() -> None:
         CREATE INDEX IF NOT EXISTS idx_transactions_tanggal ON transactions(tanggal);
         CREATE TABLE IF NOT EXISTS calendar_items (
             id              TEXT PRIMARY KEY,
-            type            TEXT NOT NULL CHECK (type IN ('event','reminder','bill','birthday','meeting','health','other','schedule')),
+            type            TEXT NOT NULL CHECK (type IN ('schedule','birthday','bill')),
             title           TEXT NOT NULL,
             child           TEXT,
             date            TEXT,
@@ -186,6 +186,29 @@ def init_db() -> None:
     row = conn.execute("SELECT value FROM app_state WHERE key='rev'").fetchone()
     if row is None:
         conn.execute("INSERT INTO app_state(key, value) VALUES('rev', '1')")
+    backfill_calendar_categories(conn)
+
+
+def backfill_calendar_categories(conn: sqlite3.Connection) -> None:
+    """Sekali saja: beri kategori pada agenda lama sesuai jenisnya.
+
+    Dijaga penanda di app_state supaya agenda yang sengaja dibuat "tanpa kategori"
+    tidak diisi ulang setiap server dijalankan.
+    """
+    if conn.execute("SELECT 1 FROM app_state WHERE key='calendar_category_backfill'").fetchone():
+        return
+    conn.execute("BEGIN")
+    try:
+        for item_type, label in LEGACY_CATEGORY.items():
+            conn.execute(
+                "UPDATE calendar_items SET category=? WHERE type=? AND (category IS NULL OR category='')",
+                (label, item_type),
+            )
+        conn.execute("INSERT INTO app_state(key, value) VALUES('calendar_category_backfill', '1')")
+        conn.execute("COMMIT")
+    except Exception:
+        conn.execute("ROLLBACK")
+        raise
 
 
 def bump_rev(conn: sqlite3.Connection | None = None) -> int:
@@ -812,6 +835,11 @@ NO_CACHE = {".html", ".json", ".webmanifest", ".js", ".css"}
 NO_STORE = {"sw.js"}
 
 
+CALENDAR_TYPES = {"schedule", "birthday", "bill"}
+# Label kategori untuk agenda lama yang dibuat sebelum kategori bisa diisi bebas.
+LEGACY_CATEGORY = {"schedule": "Jadwal Anak", "birthday": "Ulang Tahun", "bill": "Tagihan"}
+
+
 def normalize_calendar_item(data: dict, existing: dict | sqlite3.Row | None = None) -> dict:
     existing = dict(existing) if existing else {}
     out = dict(existing)
@@ -821,10 +849,11 @@ def normalize_calendar_item(data: dict, existing: dict | sqlite3.Row | None = No
         value = data[key] if key in data else existing.get(key)
         return default if value is None else value
 
-    item_type = str(pick("type", "event")).strip().lower() or "event"
-    if item_type not in {"event", "reminder", "bill", "birthday", "meeting", "health", "other", "schedule"}:
-        raise ValueError("Tipe tidak valid.")
-    out["type"] = item_type
+    # `type` hanya penanda perilaku (bill = punya nominal/status lunas); label yang dilihat
+    # pengguna ada di `category` (teks bebas). Nilai di luar skema lama — mis. dari klien
+    # 1.22 yang masih ter-cache — dipetakan ke 'schedule' agar tidak melanggar CHECK tabel.
+    item_type = str(pick("type", "schedule")).strip().lower()
+    out["type"] = item_type if item_type in CALENDAR_TYPES else "schedule"
 
     title = str(pick("title")).strip()
     if not title:

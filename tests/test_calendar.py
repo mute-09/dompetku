@@ -5,6 +5,8 @@ Kasus yang dijaga:
 - Field opsional bisa dikosongkan saat ubah (dulu nilai lama selalu kembali).
 - Tanggal wajib, supaya agenda tidak hilang dari daftar per tanggal.
 - POST tidak boleh menimpa agenda lain lewat `id` kiriman klien.
+- Kategori teks bebas; `type` di luar skema tabel dipetakan, bukan dilempar ke SQLite.
+- Backfill kategori agenda lama hanya sekali.
 """
 
 import os
@@ -37,6 +39,52 @@ class TestNormalisasiAgenda(unittest.TestCase):
     def test_nominal_berformat_ribuan(self):
         item = server.normalize_calendar_item({"type": "bill", "title": "Listrik", "date": "2026-11-05", "amount": "250.000"})
         self.assertEqual(item["amount"], 250000)
+
+    def test_tipe_asing_dipetakan_ke_schedule(self):
+        # Klien 1.22 yang masih ter-cache mengirim 'event'/'health'; tabel produksi hanya
+        # menerima schedule/birthday/bill, jadi jangan sampai lolos mentah ke INSERT.
+        for tipe in ("event", "health", "", "BILL "):
+            item = server.normalize_calendar_item({"type": tipe, "title": "X", "date": "2026-11-05"})
+            self.assertIn(item["type"], server.CALENDAR_TYPES)
+        self.assertEqual(server.normalize_calendar_item({"type": "BILL ", "title": "X", "date": "2026-11-05"})["type"], "bill")
+
+    def test_kategori_bebas_dipangkas(self):
+        item = server.normalize_calendar_item({"title": "X", "date": "2026-11-05", "category": "  Sekolah  " + "x" * 60})
+        self.assertTrue(item["category"].startswith("Sekolah"))
+        self.assertLessEqual(len(item["category"]), 40)
+
+
+class TestBackfillKategori(unittest.TestCase):
+    """Agenda lama (sebelum kategori bebas) diberi kategori sekali saja."""
+
+    def setUp(self):
+        import sqlite3
+        self.conn = sqlite3.connect(":memory:", isolation_level=None)
+        self.conn.executescript(
+            """
+            CREATE TABLE app_state (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+            CREATE TABLE calendar_items (
+                id TEXT PRIMARY KEY,
+                type TEXT NOT NULL CHECK (type IN ('schedule','birthday','bill')),
+                category TEXT
+            );
+            INSERT INTO calendar_items VALUES ('a','schedule',NULL), ('b','birthday',''), ('c','bill','Listrik rumah');
+            """
+        )
+
+    def kategori(self):
+        return dict(self.conn.execute("SELECT id, category FROM calendar_items").fetchall())
+
+    def test_isi_sesuai_jenis_tanpa_menimpa(self):
+        server.backfill_calendar_categories(self.conn)
+        self.assertEqual(self.kategori(), {"a": "Jadwal Anak", "b": "Ulang Tahun", "c": "Listrik rumah"})
+
+    def test_hanya_sekali(self):
+        server.backfill_calendar_categories(self.conn)
+        # Pengguna sengaja memilih "Tanpa kategori": restart server tidak boleh mengisinya lagi.
+        self.conn.execute("UPDATE calendar_items SET category=NULL WHERE id='a'")
+        server.backfill_calendar_categories(self.conn)
+        self.assertIsNone(self.kategori()["a"])
 
 
 class TestApiKalender(ServerTestCase):
@@ -82,6 +130,18 @@ class TestApiKalender(ServerTestCase):
         self.assertEqual(status, 200)
         status, data = self.call("GET", "/api/calendar-items")
         self.assertEqual(data["items"], [])
+
+    def test_kategori_custom_tersimpan_lewat_http(self):
+        status, data = self.call("POST", "/api/calendar-items", {
+            "type": "event", "category": "Sekolah", "title": "Rapor", "date": "2026-12-20",
+        })
+        self.assertEqual(status, 201, data)
+        self.assertEqual(data["item"]["category"], "Sekolah")
+        self.assertEqual(data["item"]["type"], "schedule")
+
+        status, data = self.call("PATCH", "/api/calendar-item", {"id": data["item"]["id"], "category": ""})
+        self.assertEqual(status, 200, data)
+        self.assertIsNone(data["item"]["category"])
 
     def test_post_tidak_menimpa_agenda_lain(self):
         _, data = self.call("POST", "/api/calendar-items", {"type": "birthday", "title": "Ulang tahun", "date": "2026-12-01"})
