@@ -2,7 +2,8 @@
 
 Aplikasi **Sirkulasi Keuangan Rumah Tangga** berbasis Web (PWA) dengan backend Python standar
 (tanpa dependency) sehingga data tersimpan di satu server dan bisa diakses dua anggota keluarga.
-Dibagi menjadi tiga halaman: **Masuk** untuk autentikasi, **Catat** untuk input, **Laporan** untuk membaca.
+Dibagi menjadi empat halaman: **Masuk** untuk autentikasi, **Catat** untuk input, **Laporan** untuk membaca,
+dan **Kalender** untuk jadwal anak, ulang tahun, dan tagihan. Ketiga halaman utama terhubung lewat navigasi bawah.
 
 ## Halaman 1 — Catat (`index.html`)
 
@@ -36,6 +37,23 @@ Beranda sengaja dibuat **ringkas**: saldo dan dua tombol. Semua input lain ada d
 - Hari dengan pengeluaran tertinggi, kategori terbesar, transaksi terbesar.
 - Perubahan pengeluaran dibanding periode sebelumnya, termasuk kategori yang paling naik.
 - Tingkat tabungan, rata-rata per hari, dan rentetan hari berbiaya berturut-turut.
+
+## Halaman 3 — Kalender (`kalender.html`)
+
+Agenda keluarga bersama, tersimpan di server (tabel `calendar_items`) sehingga buya dan ummah melihat daftar yang sama.
+
+- Tiga jenis agenda: **Jadwal Anak** (dengan nama anak), **Ulang Tahun**, dan **Tagihan** (nominal + status lunas).
+- Chip saring **Semua / Jadwal Anak / Ulang Tahun / Tagihan**, masing-masing dengan jumlah agenda.
+- Daftar dikelompokkan per tanggal dengan label *Hari ini*, *Besok*, *Dalam N hari*. Agenda mendatang tampil
+  lebih dulu; agenda yang sudah lewat dilipat di balik tombol **Tampilkan agenda lewat**.
+- Tagihan yang lewat jatuh tempo dan belum lunas tetap di atas dengan penanda **Terlambat**.
+- Tombol **Tambah** membuka sheet: pilih jenis, judul, tanggal (wajib), jam, nama anak, nominal tagihan
+  (terformat otomatis), centang **Sudah lunas**, dan catatan. Ketuk baris untuk mengubah atau **menghapus**
+  (dengan konfirmasi). Field opsional bisa dikosongkan saat mengubah.
+- Daftar terakhir disimpan di `localStorage` (`dompetku.calendar`), jadi tetap bisa dibaca offline;
+  menambah/mengubah/menghapus dikunci saat offline seperti halaman lain.
+- API: `GET/POST api/calendar-items` (daftar, tambah) dan `PATCH/DELETE api/calendar-item` (ubah, hapus;
+  `{"id": ..., "toggle_done": true}` membalik status lunas tagihan).
 
 ## Halaman 0 — Masuk (`login.html`)
 
@@ -103,6 +121,13 @@ git add -A && git commit -m "..." && git push
 
 Server memakai deploy key read-only (`~/.ssh/dompetku_deploy`), jadi tidak perlu PAT di server.
 Folder `data/` tidak pernah disentuh oleh `git pull`.
+
+Kalau riwayat `main` pernah ditulis ulang (force-push), `git pull --ff-only` akan menolak. Pastikan
+`git status` di server bersih, lalu samakan dengan remote sebelum menjalankan `update.sh`:
+
+```bash
+cd ~/dompetku && git fetch origin && git reset --hard origin/main   # data/ tidak ikut terhapus
+```
 
 ### Domain dengan Cloudflare Tunnel (disarankan)
 
@@ -272,11 +297,13 @@ dompetku/
 ├── login.html            # Halaman Masuk
 ├── index.html            # Halaman Catat
 ├── laporan.html          # Halaman Laporan
+├── kalender.html         # Halaman Kalender
 ├── css/
 │   ├── base.css          # Token desain, komponen dasar (tema, tombol, sheet, toast, akun)
 │   ├── auth.css          # Tampilan halaman masuk
 │   ├── catat.css         # Hero saldo + tombol aksi
 │   ├── receipt.css       # Sheet konfirmasi hasil OCR struk
+│   ├── kalender.css      # Baris agenda, status tagihan, header Kalender
 │   └── laporan.css       # Periode, KPI, grafik, insight, tabel, daftar transaksi
 ├── js/
 │   ├── utils.js          # Format rupiah/tanggal, ikon, helper DOM
@@ -290,7 +317,8 @@ dompetku/
 │   ├── ui.js             # Tema, toast, bottom sheet, Pengaturan, panel akun, prompt install
 │   ├── auth.js           # Logika halaman masuk
 │   ├── catat.js          # Beranda: saldo + tombol aksi + modal catat
-│   └── laporan.js        # Analitik + daftar transaksi lengkap
+│   ├── laporan.js        # Analitik + daftar transaksi lengkap
+│   └── calendar.js       # Kalender: daftar agenda, saringan, sheet tambah/ubah/hapus
 ├── server.py             # Backend stdlib: auth, sesi, API, static, OCR, CLI
 ├── receipt.py            # Parser struk (nominal, tanggal, item, peringatan) + CLI
 ├── tests/test_receipt.py # Unit test parser struk
@@ -300,6 +328,7 @@ dompetku/
 ├── tests/test_css_layout.py # Regresi layout: safe-area iPhone & truncation laporan
 ├── tests/test_theme.py    # Regresi tema: toggle langsung, hydrate awal, anti-kedip
 ├── tests/test_icons.py    # Ikon/favicon wajib sama dengan mark appbar + dimensi PNG
+├── tests/test_calendar.py # API kalender: CRUD, kosongkan field, tanggal wajib, id tak bisa ditimpa
 ├── deploy/               # Unit systemd + contoh reverse proxy Nginx
 ├── data/                 # SQLite (dibuat otomatis, tidak ikut rsync)
 ├── vendor/chart.umd.min.js
@@ -355,4 +384,7 @@ Cadangan rutin: **Laporan → Ekspor JSON**. Pemulihan tersedia di **Pengaturan 
   `Allow`. Halaman login/beranda tidak pernah menampilkan halaman error Python.
 - Setiap respons `>= 400` dicatat satu baris ke journal (`[dompetku] METODE /path -> status`),
   tanpa perlu `DOMPETKU_VERBOSE`, agar error UI bisa langsung ditelusuri.
+- Fungsi level-modul **tidak boleh** disisipkan di tengah `class Handler`. Python menganggap class
+  selesai di situ dan semua method `api_*` sesudahnya ikut hilang (endpoint jadi 404).
+  `TestEndpointTerdaftar` di `tests/test_http.py` memeriksa semua handler masih terdaftar.
 - `tests/test_http.py` mengunci semua jaminan di atas; jalankan `python3 -m unittest discover -s tests`.
