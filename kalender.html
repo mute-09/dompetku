@@ -45,19 +45,25 @@
       </header>
 
       <main class="page">
-        <section class="card" aria-label="Filter kalender">
+        <section class="card" aria-label="Filter agenda">
+          <header class="card__header" style="align-items:center;gap:12px;">
+            <div>
+              <h2 class="card__title">Tampilkan agenda</h2>
+              <p class="card__subtitle">Saring berdasarkan jenis agenda</p>
+            </div>
+          </header>
           <div class="chips chips--scroll" id="calendarFilterChips" role="group" aria-label="Tipe"></div>
         </section>
 
         <section class="card" aria-label="Daftar jadwal">
-          <header class="card__header" style="align-items:flex-start;gap:16px;">
+          <header class="card__header" style="align-items:center;gap:16px;">
             <div style="flex:1;min-width:0;">
               <h2 class="card__title">Agenda</h2>
               <p class="card__subtitle" style="margin-bottom:18px;">Ringkas per tanggal, tanpa kalender bulanan penuh</p>
             </div>
-            <button class="btn btn--primary btn--small" id="addCalendarBtn" type="button" style="margin-top:178px;flex-shrink:0;padding:0 14px;height:28px;min-height:28px;line-height:1;">
+            <button class="btn btn--primary btn--small" id="addCalendarBtn" type="button" style="flex-shrink:0;padding:0 14px;height:32px;min-height:32px;line-height:1;">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-              Tambah
+              Tambah agenda
             </button>
           </header>
           <div class="list" id="calendarList"></div>

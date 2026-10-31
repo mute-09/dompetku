@@ -1,7 +1,15 @@
-import { store } from './store.js';
-import { el } from './ui.js';
+import * as store from './store.js';
+import {
+  el,
+  initTheme,
+  openSettings,
+  setupInstall,
+  setupSyncBadge,
+  setupThemeToggle,
+  setupUpdateCheck,
+  openSheet
+} from './ui.js';
 import { Api } from './api.js';
-import { openSheet } from './ui.js';
 
 const filterChips = document.getElementById('calendarFilterChips');
 const listEl = document.getElementById('calendarList');
@@ -230,9 +238,21 @@ function openForm(item=null){
 }
 
 function init(){
+  const themeToggle = document.getElementById('themeToggle');
+  const settingsBtn = document.getElementById('settingsBtn');
+  const syncBadge = document.getElementById('syncBadge');
+  const accountBtn = document.getElementById('accountBtn');
+
+  initTheme();
+  setupThemeToggle(themeToggle, () => store.getState().settings.theme);
+  setupSyncBadge(syncBadge, accountBtn);
+  setupInstall();
+  setupUpdateCheck();
+  settingsBtn?.addEventListener('click', () => openSettings());
+
   renderChips();
   if(addBtn) addBtn.addEventListener('click', (e)=>{ e.preventDefault(); openForm(null); });
-  if(fabBtn) { fabBtn.addEventListener('click', (e)=>{ e.preventDefault(); openForm(null); }); console.log('fab attached'); }
+  if(fabBtn) fabBtn.addEventListener('click', (e)=>{ e.preventDefault(); openForm(null); });
   load();
 }
 
