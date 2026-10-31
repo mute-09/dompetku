@@ -32,11 +32,6 @@
           </div>
         </div>
         <div class="appbar__actions">
-          <nav class="appbar__nav" aria-label="Navigasi utama">
-            <a class="appbar__nav-link" href="index.html">Catat</a>
-            <a class="appbar__nav-link" href="laporan.html">Laporan</a>
-            <a class="appbar__nav-link appbar__nav-link--active" href="kalender.html">Kalender</a>
-          </nav>
           <span class="sync" id="syncBadge" data-tone="idle" hidden></span>
           <button class="icon-btn" id="themeToggle" type="button" aria-label="Ganti tema"></button>
           <button class="icon-btn" id="settingsBtn" type="button" aria-label="Pengaturan">
@@ -70,6 +65,27 @@
         </section>
       </main>
     </div>
+
+    <nav class="nav" aria-label="Navigasi utama">
+      <a class="nav__item" href="index.html">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 10.6 12 3.4l9 7.2"/><path d="M5.4 9.6V19a1.4 1.4 0 0 0 1.4 1.4h10.4A1.4 1.4 0 0 0 18.6 19V9.6"/><path d="M9.8 20.4v-5.2h4.4v5.2"/>
+        </svg>
+        Catat
+      </a>
+      <a class="nav__item" href="laporan.html">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 20V4"/><path d="M4 20h16"/><path d="M8 17v-5"/><path d="M13 17V7"/><path d="M18 17v-8"/>
+        </svg>
+        Laporan
+      </a>
+      <a class="nav__item is-active" href="kalender.html" aria-current="page">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
+        </svg>
+        Kalender
+      </a>
+    </nav>
 
     <button class="fab" id="fabAddCalendar" type="button" aria-label="Tambah agenda" style="position:fixed;right:18px;bottom:calc(var(--nav-height,68px)+18px);width:56px;height:56px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(145deg,var(--primary),var(--income));color:#fff;border:none;box-shadow:var(--shadow-lg);z-index:50;">
       <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>

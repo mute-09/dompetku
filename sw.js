@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dompetku-1.17';
+const CACHE_NAME = 'dompetku-1.18';
 const APP_SHELL = [
   './',
   './index.html',
