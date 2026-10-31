@@ -275,3 +275,17 @@ class TestCacheShellSelaluSegar(ServerTestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+class TestEndpointTerdaftar(unittest.TestCase):
+    """Fungsi level-modul yang disisipkan di tengah class Handler pernah memutus
+    semua method sesudahnya: /api/transaction, /api/settings, kalender, dll jadi 404."""
+
+    WAJIB = {
+        "health", "slots", "session", "login", "logout", "password", "state",
+        "transaction", "transactions", "settings", "import", "export", "ocr",
+        "receipt_parse", "calendar_items", "calendar_item", "reset",
+    }
+
+    def test_semua_handler_api_ada_di_class(self):
+        ada = {name[4:] for name in dir(server.Handler) if name.startswith("api_")}
+        self.assertEqual(self.WAJIB - ada, set(), "handler API hilang dari server.Handler")

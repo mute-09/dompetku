@@ -812,6 +812,120 @@ NO_CACHE = {".html", ".json", ".webmanifest", ".js", ".css"}
 NO_STORE = {"sw.js"}
 
 
+def normalize_calendar_item(data: dict, existing: dict | sqlite3.Row | None = None) -> dict:
+    existing = dict(existing) if existing else {}
+    out = dict(existing)
+
+    def pick(key: str, default=""):
+        # Kunci yang dikirim klien menang meski kosong, supaya field bisa dikosongkan saat ubah.
+        value = data[key] if key in data else existing.get(key)
+        return default if value is None else value
+
+    item_type = str(pick("type", "schedule")).strip().lower() or "schedule"
+    if item_type not in {"schedule", "birthday", "bill"}:
+        raise ValueError("Tipe tidak valid.")
+    out["type"] = item_type
+
+    title = str(pick("title")).strip()
+    if not title:
+        raise ValueError("Judul wajib diisi.")
+    out["title"] = title[:120]
+
+    child = str(pick("child")).strip()
+    out["child"] = child[:60] or None
+
+    date = str(pick("date")).strip()
+    if not date:
+        raise ValueError("Tanggal wajib diisi.")
+    if re.match(r'^\d{4}-\d{2}-\d{2}$', date) is None:
+        raise ValueError("Format tanggal tidak valid (YYYY-MM-DD).")
+    out["date"] = date
+    out["start_date"] = str(data.get("start_date") or "").strip() or date
+    out["end_date"] = str(pick("end_date")).strip() or None
+
+    timev = str(pick("time")).strip()
+    if timev and re.match(r'^\d{2}:\d{2}$', timev) is None:
+        raise ValueError("Format jam tidak valid (HH:MM).")
+    out["time"] = timev or None
+
+    recurring = str(pick("recurring", "none")).strip().lower()
+    if recurring not in {"none", "daily", "weekly", "monthly", "yearly"}:
+        recurring = "none"
+    out["recurring"] = recurring
+
+    remind = pick("remind_days_before", [])
+    if isinstance(remind, str):
+        try:
+            remind = json.loads(remind)
+        except Exception:
+            remind = []
+    if isinstance(remind, list):
+        cleaned = []
+        for x in remind:
+            try:
+                n = int(x)
+                if n >= 0 and n <= 365:
+                    cleaned.append(n)
+            except Exception:
+                pass
+        out["remind_days_before"] = json.dumps(sorted(set(cleaned)))
+    else:
+        out["remind_days_before"] = json.dumps([])
+
+    amount = pick("amount", None)
+    if isinstance(amount, str):
+        amount = re.sub(r"[.\s]", "", amount.strip())
+    if amount in (None, ""):
+        out["amount"] = None
+    else:
+        try:
+            amt = int(float(amount))
+        except (TypeError, ValueError):
+            raise ValueError("Nominal tidak valid.")
+        if amt < 0:
+            raise ValueError("Nominal tidak valid.")
+        out["amount"] = amt
+
+    category = str(pick("category")).strip()
+    out["category"] = category[:40] or None
+    payee = str(pick("payee")).strip()
+    out["payee"] = payee[:60] or None
+
+    status = str(pick("status", "pending")).strip().lower()
+    if status not in {"pending", "done", "paid"}:
+        status = "pending"
+    out["status"] = status
+
+    notes = str(pick("notes")).strip()
+    out["notes"] = notes[:500] or None
+
+    out["id"] = str(existing.get("id") or data.get("id") or f"cal_{secrets.token_hex(6)}")
+    out["created_by"] = existing.get("created_by") or data.get("created_by")
+    out["created_at"] = existing.get("created_at") or now()
+    out["updated_at"] = now()
+    return out
+
+
+def upsert_calendar_item(item: dict, username: str | None = None) -> dict:
+    conn = db()
+    conn.execute(
+        """INSERT INTO calendar_items(id, type, title, child, date, start_date, end_date, time, recurring, remind_days_before, amount, category, payee, status, notes, created_by, created_at, updated_at)
+           VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+           ON CONFLICT(id) DO UPDATE SET
+             type=excluded.type, title=excluded.title, child=excluded.child, date=excluded.date, start_date=excluded.start_date,
+             end_date=excluded.end_date, time=excluded.time, recurring=excluded.recurring, remind_days_before=excluded.remind_days_before,
+             amount=excluded.amount, category=excluded.category, payee=excluded.payee, status=excluded.status, notes=excluded.notes,
+             updated_at=excluded.updated_at""",
+        (
+            item["id"], item["type"], item["title"], item["child"], item["date"], item["start_date"], item["end_date"],
+            item["time"], item["recurring"], item["remind_days_before"], item["amount"], item["category"], item["payee"],
+            item["status"], item["notes"], item.get("created_by") or username, item["created_at"], item["updated_at"],
+        ),
+    )
+    row = conn.execute("SELECT * FROM calendar_items WHERE id=?", (item["id"],)).fetchone()
+    return dict(row) if row else item
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "DompetKu"
     sys_version = ""
@@ -1251,116 +1365,6 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json(200, {"unchanged": True, "rev": state["rev"]})
         self.send_json(200, state)
 
-
-
-def normalize_calendar_item(data: dict, existing: dict | sqlite3.Row | None = None) -> dict:
-    existing = dict(existing) if existing else {}
-    out = dict(existing)
-
-    item_type = str(data.get("type") or existing.get("type") or "schedule").strip().lower()
-    if item_type not in {"schedule", "birthday", "bill"}:
-        raise ValueError("Tipe tidak valid.")
-    out["type"] = item_type
-
-    title = str(data.get("title") or existing.get("title") or "").strip()
-    if not title:
-        raise ValueError("Judul wajib diisi.")
-    out["title"] = title[:120]
-
-    child = str(data.get("child") or existing.get("child") or "").strip()
-    out["child"] = child[:60] or None
-
-    date = str(data.get("date") or existing.get("date") or "").strip()
-    if date and re.match(r'^\d{4}-\d{2}-\d{2}$', date) is None:
-        raise ValueError("Format tanggal tidak valid (YYYY-MM-DD).")
-    out["date"] = date or None
-    out["start_date"] = str(data.get("start_date") or existing.get("start_date") or "").strip() or out.get("date")
-    out["end_date"] = str(data.get("end_date") or existing.get("end_date") or "").strip() or None
-
-    timev = str(data.get("time") or existing.get("time") or "").strip()
-    if timev and re.match(r'^\d{2}:\d{2}$', timev) is None:
-        raise ValueError("Format jam tidak valid (HH:MM).")
-    out["time"] = timev or None
-
-    recurring = str(data.get("recurring") or existing.get("recurring") or "none").strip().lower()
-    if recurring not in {"none", "daily", "weekly", "monthly", "yearly"}:
-        recurring = "none"
-    out["recurring"] = recurring
-
-    remind = data.get("remind_days_before", existing.get("remind_days_before"))
-    if isinstance(remind, str):
-        try:
-            remind = json.loads(remind)
-        except Exception:
-            remind = []
-    if remind is None:
-        remind = []
-    if isinstance(remind, list):
-        cleaned = []
-        for x in remind:
-            try:
-                n = int(x)
-                if n >= 0 and n <= 365:
-                    cleaned.append(n)
-            except Exception:
-                pass
-        out["remind_days_before"] = json.dumps(sorted(set(cleaned)))
-    else:
-        out["remind_days_before"] = json.dumps([])
-
-    amount = data.get("amount", existing.get("amount"))
-    if amount in (None, "",):
-        out["amount"] = None
-    else:
-        try:
-            amt = int(float(amount))
-            if amt < 0:
-                raise ValueError("Nominal tidak valid.")
-            out["amount"] = amt
-        except (TypeError, ValueError):
-            raise ValueError("Nominal tidak valid.")
-
-    category = str(data.get("category") or existing.get("category") or "").strip()
-    out["category"] = category[:40] or None
-    payee = str(data.get("payee") or existing.get("payee") or "").strip()
-    out["payee"] = payee[:60] or None
-
-    status = str(data.get("status") or existing.get("status") or "pending").strip().lower()
-    if status not in {"pending", "done", "paid"}:
-        status = "pending"
-    out["status"] = status
-
-    notes = str(data.get("notes") or existing.get("notes") or "").strip()
-    out["notes"] = notes[:500] or None
-
-    out["id"] = str(data.get("id") or existing.get("id") or f"cal_{secrets.token_hex(6)}")
-    out["created_by"] = existing.get("created_by") or data.get("created_by")
-    out["created_at"] = existing.get("created_at") or now()
-    out["updated_at"] = now()
-    return out
-
-
-def upsert_calendar_item(item: dict, username: str | None = None) -> dict:
-    conn = db()
-    conn.execute(
-        """INSERT INTO calendar_items(id, type, title, child, date, start_date, end_date, time, recurring, remind_days_before, amount, category, payee, status, notes, created_by, created_at, updated_at)
-           VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-           ON CONFLICT(id) DO UPDATE SET
-             type=excluded.type, title=excluded.title, child=excluded.child, date=excluded.date, start_date=excluded.start_date,
-             end_date=excluded.end_date, time=excluded.time, recurring=excluded.recurring, remind_days_before=excluded.remind_days_before,
-             amount=excluded.amount, category=excluded.category, payee=excluded.payee, status=excluded.status, notes=excluded.notes,
-             updated_at=excluded.updated_at""",
-        (
-            item["id"], item["type"], item["title"], item["child"], item["date"], item["start_date"], item["end_date"],
-            item["time"], item["recurring"], item["remind_days_before"], item["amount"], item["category"], item["payee"],
-            item["status"], item["notes"], item.get("created_by") or username, item["created_at"], item["updated_at"],
-        ),
-    )
-    row = conn.execute("SELECT * FROM calendar_items WHERE id=?", (item["id"],)).fetchone()
-    return dict(row) if row else item
-
-
-
     def api_transaction(self, method: str, query: dict) -> None:
         if not self.guard():
             return
@@ -1568,6 +1572,7 @@ def upsert_calendar_item(item: dict, username: str | None = None) -> dict:
             if row is None:
                 return
             data = self.read_json() or {}
+            data.pop("id", None)  # id baru selalu dibuat server; jangan sampai menimpa agenda lain
             item = normalize_calendar_item(data)
             saved = upsert_calendar_item(item, row["username"])
             rev = bump_rev()
@@ -1582,7 +1587,7 @@ def upsert_calendar_item(item: dict, username: str | None = None) -> dict:
             return
         data = self.read_json() or {}
         if method == "PATCH":
-            identifier = str(data.get("id") or (query.get("id") or [""]))
+            identifier = str(data.get("id") or (query.get("id") or [""])[0])
             existing = db().execute("SELECT * FROM calendar_items WHERE id=?", (identifier,)).fetchone()
             if not existing:
                 return self.send_json(404, {"error": "Agenda tidak ditemukan."})
@@ -1593,7 +1598,7 @@ def upsert_calendar_item(item: dict, username: str | None = None) -> dict:
             rev = bump_rev()
             return self.send_json(200, {"item": saved, "rev": rev})
         if method == "DELETE":
-            identifier = str(data.get("id") or (query.get("id") or [""]))
+            identifier = str(data.get("id") or (query.get("id") or [""])[0])
             conn = db()
             cur = conn.execute("DELETE FROM calendar_items WHERE id=?", (identifier,))
             if cur.rowcount == 0:
