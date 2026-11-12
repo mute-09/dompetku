@@ -32,13 +32,14 @@ function renderBalance() {
   const state = store.getState();
   const totals = store.totals();
   const today = todayStr();
+  const month = summarize(state, resolveRange({ period: 'month' }));
   const todayNet = summarize(state, resolveRange({ period: 'today' })).net;
   const avg = dailyAverage(state, today, 30);
 
   dom.balanceAmount.textContent = formatRupiah(totals.balance);
   dom.balanceAmount.classList.toggle('is-negative', totals.balance < 0);
-  dom.totalIncome.textContent = formatRupiah(totals.income, { compact: totals.income >= 1e9 });
-  dom.totalExpense.textContent = formatRupiah(totals.expense, { compact: totals.expense >= 1e9 });
+  dom.totalIncome.textContent = formatRupiah(month.income, { compact: month.income >= 1e9 });
+  dom.totalExpense.textContent = formatRupiah(month.expense, { compact: month.expense >= 1e9 });
   dom.balanceDate.textContent = `Per ${formatDate(today)}`;
 
   clearNode(dom.balanceStats);
