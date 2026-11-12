@@ -141,7 +141,7 @@ function renderPeriodChips() {
   dom.periodChips.append(
     ...options.map((option) => {
       const chip = el('button', {
-        class: `chip chip--sm${view.period === option.id ? ' is-active' : ''}`,
+        class: `period-tab${view.period === option.id ? ' is-active' : ''}`,
         type: 'button',
         text: option.label,
         dataset: { period: option.id }
