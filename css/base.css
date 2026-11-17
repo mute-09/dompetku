@@ -175,9 +175,16 @@ h1, h2, h3, h4 {
   position: sticky;
   top: 0;
   z-index: 40;
-  display: flex;
+  /* Baris 1: judul + tombol. Baris 2: rentang periode & saldo, membentang penuh
+     supaya tidak pernah berebut ruang dengan tombol di kanan. */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'brand actions'
+    'sub sub';
   align-items: center;
-  gap: 12px;
+  column-gap: 12px;
+  row-gap: 2px;
   /* Konten diturunkan melewati status bar; latar tetap menutup area atas. */
   padding: calc(var(--safe-top) + 14px) 0 12px;
   background: var(--bg);
@@ -193,9 +200,15 @@ h1, h2, h3, h4 {
 }
 
 .appbar__brand {
+  grid-area: brand;
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
+}
+
+.appbar__brand > div {
+  /* Tanpa ini judul tidak bisa menyusut dan ellipsis tidak pernah aktif. */
   min-width: 0;
 }
 
@@ -214,24 +227,37 @@ h1, h2, h3, h4 {
 .appbar__title {
   font-size: 1.02rem;
   line-height: 1.15;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .appbar__sub {
+  grid-area: sub;
+  /* Sejajar dengan judul: lebar mark (34px) + jarak brand (10px). */
+  padding-left: 44px;
   font-size: 0.72rem;
   color: var(--text-muted);
   line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .appbar__actions {
+  grid-area: actions;
   margin-left: auto;
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: flex-end;
+}
+
+.appbar__actions > * {
+  /* Tombol tidak boleh mengempis walau ruang menipis. */
+  flex: 0 0 auto;
 }
 
 .appbar__nav {

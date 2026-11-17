@@ -102,5 +102,57 @@ class TestJarakAntarBlokSeragam(unittest.TestCase):
                               f"{selector} di {berkas} harus ikut memakai --stack-gap")
 
 
+class TestAppbarDuaBaris(unittest.TestCase):
+    """Judul + tombol di baris pertama, rentang & saldo di baris kedua.
+
+    Bug yang dicegah: subjudul panjang (mis. "November 2026 · saldo Rp12.500.000")
+    berebut ruang dengan tombol kanan, membungkus dua baris, dan melempar avatar
+    ke baris baru. Solusinya subjudul pindah ke baris sendiri selebar appbar.
+    """
+
+    HALAMAN = ("index.html", "laporan.html", "kalender.html")
+
+    def setUp(self):
+        self.css = read("css", "base.css")
+
+    def test_appbar_disusun_grid_dua_baris(self):
+        body = "\n".join(aturan(self.css, ".appbar"))
+        self.assertIn("display: grid", body, ".appbar harus grid, bukan flex sebaris")
+        self.assertIn("brand actions", body, "baris pertama: judul + tombol")
+        self.assertIn("sub sub", body, "baris kedua: subjudul membentang penuh")
+
+    def test_subjudul_punya_area_sendiri_dan_tidak_membungkus(self):
+        body = "\n".join(aturan(self.css, ".appbar__sub"))
+        for deklarasi in ("grid-area: sub", "white-space: nowrap",
+                          "overflow: hidden", "text-overflow: ellipsis"):
+            self.assertIn(deklarasi, body,
+                          f".appbar__sub butuh '{deklarasi}' agar tetap satu baris "
+                          "dan terpotong rapi, bukan menabrak tombol")
+
+    def test_tombol_tidak_pernah_membungkus_atau_mengempis(self):
+        body = "\n".join(aturan(self.css, ".appbar__actions"))
+        self.assertIn("grid-area: actions", body)
+        self.assertIn("flex-wrap: nowrap", body,
+                      "tombol kanan tidak boleh dilipat ke baris kedua")
+        anak = "\n".join(aturan(self.css, ".appbar__actions > *"))
+        self.assertIn("flex: 0 0 auto", anak, "ikon jangan mengecil saat ruang menipis")
+
+    def test_judul_tetap_bisa_di_ellipsis(self):
+        body = "\n".join(aturan(self.css, ".appbar__title"))
+        self.assertIn("min-width: 0", body,
+                      "tanpa min-width 0, ellipsis judul tidak pernah aktif")
+
+    def test_subjudul_di_html_berada_setelah_baris_tombol(self):
+        for nama in self.HALAMAN:
+            html = read(nama)
+            with self.subTest(halaman=nama):
+                self.assertLess(
+                    html.index('class="appbar__actions"'),
+                    html.index('id="appbarSub"'),
+                    f"{nama}: subjudul harus jadi saudara .appbar__actions "
+                    "(baris sendiri), bukan di dalam .appbar__brand",
+                )
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
