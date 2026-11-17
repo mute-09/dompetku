@@ -142,6 +142,20 @@ class TestAppbarDuaBaris(unittest.TestCase):
         self.assertIn("min-width: 0", body,
                       "tanpa min-width 0, ellipsis judul tidak pernah aktif")
 
+    def test_judul_setinggi_kotak_mark(self):
+        mark = "\n".join(aturan(self.css, ".appbar__mark"))
+        judul = "\n".join(aturan(self.css, ".appbar__title"))
+        self.assertIn("height: 34px", mark)
+        self.assertIn("line-height: 34px", judul,
+                      "judul harus setinggi kotak mark (34px) agar rata sebagai satu blok")
+
+    def test_subjudul_mulai_dari_tepi_kiri_mark(self):
+        body = "\n".join(aturan(self.css, ".appbar__sub"))
+        self.assertNotIn("padding-left", body,
+                         "subjudul tidak boleh menjorok; mulai dari tepi kiri kotak mark")
+        self.assertIn("margin-top", body,
+                      "subjudul butuh jarak atas tipis dari baris tombol")
+
     def test_subjudul_di_html_berada_setelah_baris_tombol(self):
         for nama in self.HALAMAN:
             html = read(nama)

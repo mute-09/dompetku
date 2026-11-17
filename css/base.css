@@ -184,7 +184,7 @@ h1, h2, h3, h4 {
     'sub sub';
   align-items: center;
   column-gap: 12px;
-  row-gap: 2px;
+  row-gap: 0;
   /* Konten diturunkan melewati status bar; latar tetap menutup area atas. */
   padding: calc(var(--safe-top) + 14px) 0 12px;
   background: var(--bg);
@@ -226,7 +226,8 @@ h1, h2, h3, h4 {
 
 .appbar__title {
   font-size: 1.02rem;
-  line-height: 1.15;
+  /* Setinggi kotak mark (34px) agar judul dan mark rata sebagai satu blok. */
+  line-height: 34px;
   min-width: 0;
   white-space: nowrap;
   overflow: hidden;
@@ -235,8 +236,8 @@ h1, h2, h3, h4 {
 
 .appbar__sub {
   grid-area: sub;
-  /* Sejajar dengan judul: lebar mark (34px) + jarak brand (10px). */
-  padding-left: 44px;
+  /* Mulai dari tepi kiri kotak mark, dengan jarak tipis dari baris tombol. */
+  margin-top: 6px;
   font-size: 0.72rem;
   color: var(--text-muted);
   line-height: 1.2;
