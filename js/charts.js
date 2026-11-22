@@ -214,7 +214,7 @@ function colorToRgba(color, alpha) {
   if (value.startsWith('#')) {
     const hex = value.length === 4
       ? value.slice(1).split('').map((c) => c + c).join('')
-      : value.slice(1, 6);
+      : value.slice(1, 7);
     const num = parseInt(hex, 16);
     return `rgba(${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}, ${alpha})`;
   }
